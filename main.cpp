@@ -13,29 +13,42 @@ int main(int argc, char* argv[]){
 	PolyhedronMesh mesh;
 	//controllo input
 	if(argc==5){
-		int p = stoi(argv[1]);
-		int q = stoi(argv[2]);
+		unsigned int p = stoi(argv[1]);
+		unsigned int q = stoi(argv[2]);
 		int b = stoi(argv[3]);
 		int c = stoi(argv[4]);
-		if(b<0 || c<0){
-			cerr << "errore su input b e c"<<endl;
+		if(b<0 || c<0)
+		{
+			cerr << "errore su b o c" <<endl;
 			return 1;
 		}
-		if(p==3){
-			if(q==3 ||q==4 || q==5)
-				ConstructorPolyhedronCells(p,q,b,c,mesh);
-			else{
-				cerr << "errore in input su q con p=3"<<endl;
-				return 1;
+		else
+		{
+			if(p==3){
+				if(q==3 ||q==4 || q==5)
+				{
+					ConstructorPolyhedronCells(p,q,b,c,mesh);
+					Triangulation_Iclass(q,b,c,mesh);
+				}
+				else{
+					cerr << "errore in input su q con p=3"<<endl;
+					return 1;
+				}
 			}
-		}
-		else if(q==3){
-			if(p==4 || p==5){
-				ConstructorPolyhedronCells(q,p,b,c,mesh); //scambiati p e q per avere duale di partenza
-				mesh = DualConstructorPolyhedronCells(mesh);
+			else if(q==3){
+				if(p==4 || p==5){
+					ConstructorPolyhedronCells(q,p,b,c,mesh); //scambiati p e q per avere duale di partenza
+					Triangulation_Iclass(p,b,c,mesh);
+					mesh = DualConstructorPolyhedronCells(mesh);
+				}
+				else{
+					cerr << "errore in input su p con q == 3" << endl;
+					return 1;
+				}
 			}
-			else{
-				cerr << "errore in input su p con q == 3" << endl;
+			else
+			{
+				cerr << "errore su b e c"<<endl;
 				return 1;
 			}
 		}
@@ -48,32 +61,41 @@ int main(int argc, char* argv[]){
 		int c = stoi(argv[4]);
 		int id_origin = stoi(argv[5]);
 		int id_end = stoi(argv[6]);
-				if(b<0 || c<0){
-			cerr << "errore su input b e c"<<endl;
+		if(b<0 || c<0)
+		{
+			cerr << "errore su b o c" <<endl;
 			return 1;
 		}
-		if(p==3){
-			if(q==3 ||q==4 || q==5)
-				ConstructorPolyhedronCells(p,q,b,c,mesh);
-			else{
-				cerr << "errore in input su q con p=3"<<endl;
-				return 1;
-			}
-		}
-		else if(q==3){
-			if(p==4 || p==5){
-				ConstructorPolyhedronCells(q,p,b,c,mesh); //scambiati p e q per avere duale di partenza
-				mesh = DualConstructorPolyhedronCells(mesh);
-			}
-			else{
-				cerr << "errore in input su p con q == 3" << endl;
-				return 1;
-			}
-		}
 		else
-			cerr << "errore in scrittura input"<<endl;
-		
-		
+		{
+			if(p==3){
+				if(q==3 ||q==4 || q==5)
+				{
+					ConstructorPolyhedronCells(p,q,b,c,mesh);
+					Triangulation_Iclass(q,b,c,mesh);
+				}
+				else{
+					cerr << "errore in input su q con p=3"<<endl;
+					return 1;
+				}
+			}
+			else if(q==3){
+				if(p==4 || p==5){
+					ConstructorPolyhedronCells(q,p,b,c,mesh); //scambiati p e q per avere duale di partenza
+					Triangulation_Iclass(q,b,c,mesh);
+					mesh = DualConstructorPolyhedronCells(mesh);
+				}
+				else{
+					cerr << "errore in input su p con q == 3" << endl;
+					return 1;
+				}
+			}
+			else
+			{
+				cerr << "errore su b e c"<<endl;
+				return 1;
+			}
+		}		
 	}
 
 

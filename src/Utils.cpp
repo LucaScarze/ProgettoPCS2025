@@ -11,7 +11,7 @@ using namespace std;
 
 namespace PolyhedronLibrary
 {
-	void Tetraedro(int p,int q,PolyhedronMesh &mesh){
+	void Tetraedro(unsigned int p,unsigned int q,PolyhedronMesh &mesh){
 		//formule per ricavare numero vertici, spigoli e facce a partire dai numeri di Schlafli
 		mesh.NumCell0Ds = (4*p)/(4-(p-2)*(q-2)); 		//numero vertici poliedro
 		mesh.NumCell1Ds = (2*p*q)/(4-(p-2)*(q-2));		//numero lati poliedro
@@ -76,7 +76,7 @@ namespace PolyhedronLibrary
 		}
 	}
 	
-	void Ottaedro(int p,int q,PolyhedronMesh &mesh){
+	void Ottaedro(unsigned int p,unsigned int q,PolyhedronMesh &mesh){
 		//formule per ricavare numero vertici, spigoli e facce a partire dai numeri di Schlafli
 		mesh.NumCell0Ds = (4*p)/(4-(p-2)*(q-2)); 		//numero vertici poliedro
 		mesh.NumCell1Ds = (2*p*q)/(4-(p-2)*(q-2));		//numero lati poliedro
@@ -137,7 +137,7 @@ namespace PolyhedronLibrary
 		}
 	}
 	
-	void Icosaedro(int p,int q,PolyhedronMesh &mesh){
+	void Icosaedro(unsigned int p,unsigned int q,PolyhedronMesh &mesh){
 		//formule per ricavare numero vertici, spigoli e facce a partire dai numeri di Schlafli
 		mesh.NumCell0Ds = (4*p)/(4-(p-2)*(q-2)); 		//numero vertici poliedro
 		mesh.NumCell1Ds = (2*p*q)/(4-(p-2)*(q-2));		//numero lati poliedro
@@ -203,7 +203,7 @@ namespace PolyhedronLibrary
 	}
 	
 	
-	void ConstructorPolyhedronCells(int p,int q,int b,int c,PolyhedronMesh &mesh){
+	void ConstructorPolyhedronCells(unsigned int p,unsigned int q,int b,int c,PolyhedronMesh &mesh){
 		if(q==3)
 			Tetraedro(p,q,mesh);
 		else if(q==4)
@@ -254,17 +254,11 @@ namespace PolyhedronLibrary
 		vector<unsigned int> FacceVicine;
 		for(unsigned int i=0;i<mesh.NumCell0Ds;i++)
 		{
-			cout << "lati vicini di " << i <<endl;
 			for(unsigned int k=0; k<mesh.NumCell1Ds;k++) //indice colonna matrice Extrema
 			{
 				if(mesh.Cell1DsExtrema(0,k) == i || mesh.Cell1DsExtrema(1,k) == i)
-				{
 					LatiVicini.push_back(k);
-					cout << k << " ";
-				}
 			}
-			cout << endl;
-			cout << "facce vicine di " << i << endl;
 			for(unsigned int j=0; j<mesh.NumCell2Ds;j++)
 			{
 				for(unsigned int h=0;h<3;h++)
@@ -272,12 +266,10 @@ namespace PolyhedronLibrary
 					if(mesh.Cell2DsVertices[j][h] == i)
 					{
 						FacceVicine.push_back(j);
-						cout << j << " ";
 						break;
 					}
 				}
 			}
-			cout << endl;
 			mesh.Cell0DsEdgesAdj.push_back(LatiVicini);
 			mesh.Cell0DsFacesAdj.push_back(FacceVicine);
 			LatiVicini.clear();
@@ -362,5 +354,365 @@ namespace PolyhedronLibrary
 			LatiVisitati.clear();
 		}
 		return dualmesh;
+	}
+	
+
+	
+	void Triangulation_Iclass(unsigned int q,int b,int c,PolyhedronMesh &mesh){
+		unsigned int n;
+		if(b==0 && c>0)
+			n=c;
+		else
+			n=b;	
+		unsigned int T = n*n;
+		unsigned int NewNumCell0Ds;
+		unsigned int NewNumCell1Ds;
+		unsigned int NewNumCell2Ds;
+		if(q==3)
+		{
+			NewNumCell0Ds = 2*T+2;
+			NewNumCell1Ds = 6*T;
+			NewNumCell2Ds = 4*T;
+		}
+		else if(q==4)
+		{
+			NewNumCell0Ds = 4*T+2;
+			NewNumCell1Ds = 12*T;
+			NewNumCell2Ds = 8*T;
+		}
+		else
+		{
+			NewNumCell0Ds = 10*T+2;
+			NewNumCell1Ds = 30*T;
+			NewNumCell2Ds = 20*T;
+		}
+		vector<unsigned int> LatiTriangolati; //vettore che contiene lati già coinvolti in triangolazione
+		vector<unsigned int> LatiSovrascritti; //vettore che contiene lati già sovrasrctitti da "sottolati" 
+		unsigned int h = mesh.NumCell0Ds;//indice da cui partire per memorizzare nuovi vertici
+		unsigned int k = 0;//indice per memorizzare nuovi lati
+		unsigned int old_facce = mesh.NumCell2Ds;//memorizzo numero facce su cui iterare
+		MatrixXi OrdineTriangolazioneLato = Eigen::MatrixXi::Zero(3,mesh.NumCell1Ds); //matrice in cui prima riga=primo vertice, seconda riga=secondo vertice lati
+		MatrixXi FirstNuoviVerticiLato = Eigen::MatrixXi::Zero(n-1,mesh.NumCell1Ds);//prima triangolazione lato
+		//prepariamo struttura mesh ad aggiunta nuovi punti,lati e facce
+		mesh.Cell0DsId.reserve(NewNumCell0Ds);
+		mesh.Cell0DsCoordinates.conservativeResize(4, NewNumCell0Ds);
+		mesh.Cell1DsId.reserve(NewNumCell1Ds);
+		mesh.Cell1DsExtrema.resize(3, NewNumCell1Ds);
+		mesh.Cell2DsId.reserve(NewNumCell2Ds);
+		mesh.Cell2DsVertices.reserve(NewNumCell2Ds);
+		mesh.Cell2DsEdges.reserve(NewNumCell2Ds);
+		LatiTriangolati.reserve(mesh.NumCell1Ds);
+		LatiSovrascritti.reserve(mesh.NumCell1Ds);
+		mesh.Cell1DsId.clear();
+		//inizializziamo vettore Cell1DsControl con tutti true
+		for(unsigned int i=0;i<NewNumCell1Ds;i++)
+			mesh.Cell1DsControl.push_back(true);
+		//definiamo variabili per memorizzare i lati e i vertici originali delle facce alleggerendo la scrittura
+		unsigned int lato1;
+		unsigned int lato2;
+		unsigned int lato3;
+		unsigned int vertice1;
+		unsigned int vertice2;
+		unsigned int vertice3;
+		//incrementi per definire ciascun punto 
+		double delta_x;
+		double delta_y;
+		double delta_z;
+		vector<vector<unsigned int>> VerticiLivelloS; //vertici interni al "livello" s
+		VerticiLivelloS.reserve(n-2);//n-2 livelli interni
+		vector<unsigned int> livelloS;
+		for(unsigned int i=0;i<old_facce;i++)//for su facce 
+		{
+			MatrixXi NuoviVerticiLato = Eigen::MatrixXi::Zero(n-1, 3); //in colonna contiene id nuovi vertici della triangolazione sul lato nella faccia i
+			lato1 = mesh.Cell2DsEdges[i][0];
+			lato2 = mesh.Cell2DsEdges[i][1];
+			lato3 = mesh.Cell2DsEdges[i][2];
+			vertice1 = mesh.Cell2DsVertices[i][0];
+			vertice2 = mesh.Cell2DsVertices[i][1];
+			vertice3 = mesh.Cell2DsVertices[i][2];
+			//definiamo nuovi punti sui lati se non già esistenti
+			auto it_1 = find(LatiTriangolati.begin(), LatiTriangolati.end(),lato1);
+			if(it_1 == LatiTriangolati.end())
+			{
+				OrdineTriangolazioneLato(0,lato1) = vertice1;
+				OrdineTriangolazioneLato(1,lato1) = vertice2;
+				delta_x = (mesh.Cell0DsCoordinates(0,vertice2)-mesh.Cell0DsCoordinates(0,vertice1))/n;
+				delta_y = (mesh.Cell0DsCoordinates(1,vertice2)-mesh.Cell0DsCoordinates(1,vertice1))/n;
+				delta_z = (mesh.Cell0DsCoordinates(2,vertice2)-mesh.Cell0DsCoordinates(2,vertice1))/n;
+				for(unsigned int j=0;j<n-1;j++)
+				{
+					mesh.Cell0DsId.push_back(h);
+					mesh.Cell0DsCoordinates(0,h) = mesh.Cell0DsCoordinates(0,vertice1)+(j+1)*delta_x;
+					mesh.Cell0DsCoordinates(1,h) = mesh.Cell0DsCoordinates(1,vertice1)+(j+1)*delta_y;
+					mesh.Cell0DsCoordinates(2,h) = mesh.Cell0DsCoordinates(2,vertice1)+(j+1)*delta_z;
+					FirstNuoviVerticiLato(j,lato1)=h;//lo memorizzo per confronti futuri
+					NuoviVerticiLato(j,0)=h;
+					h++;
+				}
+				LatiTriangolati.push_back(lato1);
+			}
+			else if(vertice1 == OrdineTriangolazioneLato(0,lato1) && vertice2 == OrdineTriangolazioneLato(1,lato1)) //controllo se ordine è lo stesso di OrdineTriangolazioneLato, sennò bisogna invertire
+			{
+				for(unsigned int l=0;l<n-1;l++)
+					NuoviVerticiLato(l,0)= FirstNuoviVerticiLato(l,lato1); //nuovi vertici salvati con ordine faccia originale
+			}
+			else
+			{
+				for(unsigned int l=0;l<n-1;l++)
+					NuoviVerticiLato(l,0)= FirstNuoviVerticiLato(n-2-l,lato1);//nuovi vertici salvati in ordine opposto
+			}
+			auto it_2 = find(LatiTriangolati.begin(), LatiTriangolati.end(),lato2);
+			if(it_2 == LatiTriangolati.end())
+			{
+				OrdineTriangolazioneLato(0,lato2) = vertice2;
+				OrdineTriangolazioneLato(1,lato2) = vertice3;
+				delta_x = (mesh.Cell0DsCoordinates(0,vertice3)-mesh.Cell0DsCoordinates(0,vertice2))/n;
+				delta_y = (mesh.Cell0DsCoordinates(1,vertice3)-mesh.Cell0DsCoordinates(1,vertice2))/n;
+				delta_z = (mesh.Cell0DsCoordinates(2,vertice3)-mesh.Cell0DsCoordinates(2,vertice2))/n;
+				for(unsigned int j=0;j<n-1;j++)
+				{
+					mesh.Cell0DsId.push_back(h);
+					mesh.Cell0DsCoordinates(0,h) = mesh.Cell0DsCoordinates(0,vertice2)+(j+1)*delta_x;
+					mesh.Cell0DsCoordinates(1,h) = mesh.Cell0DsCoordinates(1,vertice2)+(j+1)*delta_y;
+					mesh.Cell0DsCoordinates(2,h) = mesh.Cell0DsCoordinates(2,vertice2)+(j+1)*delta_z;
+					FirstNuoviVerticiLato(j,lato2)=h;
+					NuoviVerticiLato(j,1)=h;
+					h++;
+				}
+			LatiTriangolati.push_back(lato2);
+			}
+			else if(vertice2 == OrdineTriangolazioneLato(0,lato2) && vertice3 == OrdineTriangolazioneLato(1,lato2))
+			{
+				for(unsigned int l=0;l<n-1;l++)
+					NuoviVerticiLato(l,1)= FirstNuoviVerticiLato(l,lato2);
+			}
+			else
+			{
+				for(unsigned int l=0;l<n-1;l++)
+					NuoviVerticiLato(l,1)= FirstNuoviVerticiLato(n-2-l,lato2);	
+			}
+			auto it_3 = find(LatiTriangolati.begin(), LatiTriangolati.end(),lato3);
+			if(it_3 == LatiTriangolati.end())
+			{
+				OrdineTriangolazioneLato(0,lato3) = vertice3;
+				OrdineTriangolazioneLato(1,lato3) = vertice1;
+				delta_x = (mesh.Cell0DsCoordinates(0,vertice1)-mesh.Cell0DsCoordinates(0,vertice3))/n;
+				delta_y = (mesh.Cell0DsCoordinates(1,vertice1)-mesh.Cell0DsCoordinates(1,vertice3))/n;
+				delta_z = (mesh.Cell0DsCoordinates(2,vertice1)-mesh.Cell0DsCoordinates(2,vertice3))/n;
+				for(unsigned int j=0;j<n-1;j++)
+				{
+					mesh.Cell0DsId.push_back(h);
+					mesh.Cell0DsCoordinates(0,h) = mesh.Cell0DsCoordinates(0,vertice3)+(j+1)*delta_x;
+					mesh.Cell0DsCoordinates(1,h) = mesh.Cell0DsCoordinates(1,vertice3)+(j+1)*delta_y;
+					mesh.Cell0DsCoordinates(2,h) = mesh.Cell0DsCoordinates(2,vertice3)+(j+1)*delta_z;
+					FirstNuoviVerticiLato(j,lato3)=h;
+					NuoviVerticiLato(j,2)=h;
+					h++;
+				}
+			LatiTriangolati.push_back(lato3);
+			}
+			else if(vertice3 == OrdineTriangolazioneLato(0,lato3) && vertice1 == OrdineTriangolazioneLato(1,lato3))
+			{
+				for(unsigned int l=0;l<n-1;l++)
+					NuoviVerticiLato(l,2)= FirstNuoviVerticiLato(l,lato3);
+			}
+			else
+			{
+				for(unsigned int l=0;l<n-1;l++)
+					NuoviVerticiLato(l,2)= FirstNuoviVerticiLato(n-2-l,lato3);
+			}
+			//definizione vertici "interni" alla faccia
+			//considerando lato1 come base del triangolo, "salendo" verso il vertice opposto(vertice3) ad ogni "livello" vertici triangolazione sugli altri
+			//due lati corrisponde un numero di nuovi vertici interni che diminuisce di 1 (a partire da n-1, che è su lato1)
+			for(unsigned int s=0;s<n-2;s++) //for sui "livelli"
+			{
+				delta_x = (mesh.Cell0DsCoordinates(0,NuoviVerticiLato(s,1))-mesh.Cell0DsCoordinates(0,NuoviVerticiLato(n-2-s,2)))/(n-1-s);
+				delta_y = (mesh.Cell0DsCoordinates(1,NuoviVerticiLato(s,1))-mesh.Cell0DsCoordinates(1,NuoviVerticiLato(n-2-s,2)))/(n-1-s);
+				delta_z = (mesh.Cell0DsCoordinates(2,NuoviVerticiLato(s,1))-mesh.Cell0DsCoordinates(2,NuoviVerticiLato(n-2-s,2)))/(n-1-s);
+				for(unsigned int r=0;r<n-2-s;r++)//numero di nuovi punti su "livello" s 
+				{ 
+					mesh.Cell0DsId.push_back(h);
+					//NuoviVerticiLato[lato3][n-2-s] per rispettare l'ordine della numerazione nuovi vertici sui lati
+					mesh.Cell0DsCoordinates(0,h) = mesh.Cell0DsCoordinates(0,NuoviVerticiLato(n-2-s,2))+(r+1)*delta_x;
+					mesh.Cell0DsCoordinates(1,h) = mesh.Cell0DsCoordinates(1,NuoviVerticiLato(n-2-s,2))+(r+1)*delta_y;
+					mesh.Cell0DsCoordinates(2,h) = mesh.Cell0DsCoordinates(2,NuoviVerticiLato(n-2-s,2))+(r+1)*delta_z;
+					livelloS.push_back(h);
+					h++;
+				}
+				VerticiLivelloS.push_back(livelloS);
+				livelloS.clear();
+			}
+			//costruzione dei lati: prima definiamo nuovi lati su ciascun lato della faccia originale se non già esistenti
+			auto it_1_sovra = find(LatiSovrascritti.begin(),LatiSovrascritti.end(),lato1);
+			if(it_1_sovra == LatiSovrascritti.end())
+			{
+				mesh.Cell1DsId.push_back(k);
+				mesh.Cell1DsExtrema(0,k) = vertice1;
+				mesh.Cell1DsExtrema(1,k) = NuoviVerticiLato(0,0);
+				k++;
+				for(unsigned int j=0;j<n-2;j++)
+				{
+					mesh.Cell1DsId.push_back(k);
+					mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(j,0);
+					mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(j+1,0);
+					k++;
+				}
+				mesh.Cell1DsId.push_back(k);
+				mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(n-2,0);
+				mesh.Cell1DsExtrema(1,k)=vertice2;
+				k++;
+				LatiSovrascritti.push_back(lato1);
+			}
+			auto it_2_sovra = find(LatiSovrascritti.begin(),LatiSovrascritti.end(),lato2);
+			if(it_2_sovra == LatiSovrascritti.end())
+			{
+				mesh.Cell1DsId.push_back(k);				
+				mesh.Cell1DsExtrema(0,k) = vertice2;
+				mesh.Cell1DsExtrema(1,k) = NuoviVerticiLato(0,1);
+				k++;
+				for(unsigned int j=0;j<n-2;j++)
+				{
+					mesh.Cell1DsId.push_back(k);
+					mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(j,1);
+					mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(j+1,1);
+					k++;
+				}
+				mesh.Cell1DsId.push_back(k);				
+				mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(n-2,1);
+				mesh.Cell1DsExtrema(1,k)=vertice3;
+				k++;
+				LatiSovrascritti.push_back(lato2);
+			}
+			auto it_3_sovra = find(LatiSovrascritti.begin(),LatiSovrascritti.end(),lato3);
+			if(it_3_sovra == LatiSovrascritti.end())
+			{
+				mesh.Cell1DsId.push_back(k);
+				mesh.Cell1DsExtrema(0,k) = vertice3;
+				mesh.Cell1DsExtrema(1,k) = NuoviVerticiLato(0,2);
+				k++;
+				for(unsigned int j=0;j<n-2;j++)
+				{
+					mesh.Cell1DsId.push_back(k);
+					mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(j,2);
+					mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(j+1,2);
+					k++;
+				}
+				mesh.Cell1DsId.push_back(k);
+				mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(n-2,2);
+				mesh.Cell1DsExtrema(1,k)=vertice1;
+				k++;
+				LatiSovrascritti.push_back(lato3);
+			}
+			//costruzione lati interni
+			//colleghiamo prima lato1 al primo livello
+			mesh.Cell1DsId.push_back(k);
+			mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(0,0);
+			mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(n-2,2);
+			k++;
+			mesh.Cell1DsId.push_back(k);
+			mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(0,0);
+			mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[0][0];
+			k++;
+			for(unsigned int f=0;f<n-3;f++)//for sui vertici centrali di NuoviVerticiLato
+			{
+				mesh.Cell1DsId.push_back(k);
+				mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(f+1,0);
+				mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[0][f];
+				k++;
+				mesh.Cell1DsId.push_back(k);
+				mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(f+1,0);
+				mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[0][f+1];
+				k++;
+			}
+			mesh.Cell1DsId.push_back(k);
+			mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(n-2,0);
+			mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[0][n-3];
+			k++;
+			mesh.Cell1DsId.push_back(k);
+			mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(n-2,0);
+			mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(0,1);
+			k++;			
+	 		//costruiamo i lati degli altri livelli(manca ultima "riga orizzontale")
+			for(unsigned int s=0;s<n-2;s++)
+			{	
+				//costruzione lati orizzontali livelloS
+				mesh.Cell1DsId.push_back(k);
+				mesh.Cell1DsExtrema(0,k) = NuoviVerticiLato(n-2-s,2);
+				mesh.Cell1DsExtrema(1,k) = VerticiLivelloS[s][0];
+				k++;
+				for(unsigned int f=0;f<n-3-s;f++)
+				{
+					mesh.Cell1DsId.push_back(k);
+					mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[s][f];
+					mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[s][f+1];
+					k++;
+				}
+				mesh.Cell1DsId.push_back(k);
+				mesh.Cell1DsExtrema(0,k) = VerticiLivelloS[s][n-3-s];
+				mesh.Cell1DsExtrema(1,k) = NuoviVerticiLato(s,1);
+				k++;
+			}
+			mesh.Cell1DsId.push_back(k);
+			mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(0,2);
+			mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(n-2,1);
+			k++;
+			//costruzione lati obliqui sui livelli(ultimo a parte)
+			for(unsigned int s=0;s<n-3;s++)
+			{
+				for(unsigned int f=0;f<n-2-s;f++) 
+				{
+					if(f==0)
+					{
+						mesh.Cell1DsId.push_back(k);
+						mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[s][0];
+						mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(n-2-s-1,2);
+						k++;
+ 						mesh.Cell1DsId.push_back(k);
+						mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[s][0];
+						mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[s+1][0];
+						k++; 
+					}
+					else if(f<n-3-s)
+					{
+						mesh.Cell1DsId.push_back(k);
+						mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[s][f];
+						mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[s+1][f-1];
+						k++;
+						mesh.Cell1DsId.push_back(k);
+						mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[s][f];
+						mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[s+1][f];
+						k++;
+					}
+					else
+					{
+						mesh.Cell1DsId.push_back(k);
+						mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[s][n-3-s];
+						mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[s+1][n-3-s-1];
+						k++;
+						mesh.Cell1DsId.push_back(k);
+ 						mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[s][n-3-s];
+						mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(s+1,1);
+						k++; 
+					}
+				}	
+			}
+			mesh.Cell1DsId.push_back(k);
+			mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[n-3][0];//c'è solo un vertice su ultimo livello
+			mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(0,2);
+			k++;
+			mesh.Cell1DsId.push_back(k);
+ 			mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[n-3][0];
+			mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(n-2,1);
+			k++; 
+			
+			
+			
+			
+			VerticiLivelloS.clear();
+		} 
+		mesh.NumCell0Ds = mesh.Cell0DsId.size();
+		mesh.NumCell1Ds = mesh.Cell1DsId.size();
+		mesh.NumCell2Ds = mesh.Cell2DsId.size();
+		
 	}
 }

@@ -25,6 +25,7 @@ namespace PolyhedronLibrary{
 		vector<vector<unsigned int>> Cell2DsEdges; // lati delle facce
 		
 		
+		
 
 	};
 }
