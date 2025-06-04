@@ -29,6 +29,7 @@ int main(int argc, char* argv[]){
 				{
 					ConstructorPolyhedronCells(p,q,b,c,mesh);
 					Triangulation_Iclass(q,b,c,mesh);
+					ProiezioneSfera(mesh);
 				}
 				else{
 					cerr << "errore in input su q con p=3"<<endl;
@@ -40,6 +41,7 @@ int main(int argc, char* argv[]){
 					ConstructorPolyhedronCells(q,p,b,c,mesh); //scambiati p e q per avere duale di partenza
 					Triangulation_Iclass(p,b,c,mesh);
 					mesh = DualConstructorPolyhedronCells(mesh);
+					ProiezioneSfera(mesh);
 				}
 				else{
 					cerr << "errore in input su p con q == 3" << endl;
@@ -73,6 +75,7 @@ int main(int argc, char* argv[]){
 				{
 					ConstructorPolyhedronCells(p,q,b,c,mesh);
 					Triangulation_Iclass(q,b,c,mesh);
+					ProiezioneSfera(mesh);
 				}
 				else{
 					cerr << "errore in input su q con p=3"<<endl;
@@ -84,6 +87,7 @@ int main(int argc, char* argv[]){
 					ConstructorPolyhedronCells(q,p,b,c,mesh); //scambiati p e q per avere duale di partenza
 					Triangulation_Iclass(q,b,c,mesh);
 					mesh = DualConstructorPolyhedronCells(mesh);
+					ProiezioneSfera(mesh);
 				}
 				else{
 					cerr << "errore in input su p con q == 3" << endl;
@@ -134,7 +138,9 @@ int main(int argc, char* argv[]){
 	file3 << "0," << mesh.NumCell0Ds << ",";
 	for(unsigned int i = 0;i<mesh.NumCell0Ds;i++)
 		file3 << i <<",";
-	//come gestire flag per lati?
+	file3 << mesh.NumCell1Ds << ",";
+	for(unsigned int i = 0;i<mesh.NumCell1Ds;i++)
+		file3 << i <<",";
 	file3.close();
 			
 	
