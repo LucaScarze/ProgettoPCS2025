@@ -1,0 +1,32 @@
+@startuml
+start
+
+:Inizializza VerticesInShortestPath e EdgesInShortestPath a zero;
+:Costruisci lista di adiacenza da Cell1DsExtrema;
+
+:Inizializza Reached[] e predecessori[];
+:Metti Id_origin nella coda Q;
+:Reached[Id_origin] = true;
+
+while (Q non è vuota)
+  :u = Q.front(); Q.pop();
+  :Per ogni vicino v di u;
+  if (v non raggiunto) then (sì)
+    :Reached[v] = true;
+    :predecessori[v] = u;
+    :Q.push(v);
+  endif
+endwhile
+
+:current = Id_end;
+
+while (current != Id_origin)
+  :Segna current e predecessore nei vettori;
+  :Trova lato che li collega;
+  :Segna lato in EdgesInShortestPath;
+  :current = predecessore;
+endwhile
+
+:Stampa numero lati nel cammino;
+stop
+@enduml

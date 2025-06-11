@@ -1,0 +1,64 @@
+@startuml
+start
+
+:Inizializza variabili:
+n, T, NewNumCell0Ds,
+NewNumCell1Ds, NewNumCell2Ds;
+
+if (q == 3?) then (sì)
+    :Calcola dimensioni per tetraedro;
+elseif (q == 4?) then (sì)
+    :Calcola dimensioni per ottaedro;
+else (no)
+    :Calcola dimensioni per icosaedro;
+endif
+
+:Prepara strutture dati mesh:
+LatiTriangolati, LatiSovrascritti,
+NuoviVerticiLato, FirstNuoviVerticiLato;
+
+if (n > 2?) then (sì)
+    repeat
+        :Per ogni faccia originale;
+        
+        :Trova lati e vertici della faccia;
+        
+        repeat
+            :Per ogni lato della faccia;
+            
+            if (Lato già triangolato?) then (no)
+                :Calcola punti intermedi sul lato;
+                :Memorizza nuovi vertici;
+                :Aggiungi lato a LatiTriangolati;
+            else (sì)
+                if (Ordine vertici diverso?) then (sì)
+                    :Inverti ordine nuovi vertici;
+                else (no)
+                    :Usa ordine memorizzato;
+                endif
+            endif
+            
+            :Crea nuovi lati suddividendo lato originale;
+            :Aggiungi a LatiSovrascritti;
+        repeat while (Tutti i lati della faccia processati?) is (no)
+        
+        :Crea vertici interni alla faccia;
+        
+        :Crea lati interni alla faccia;
+        
+        :Crea nuove facce triangolari;
+    repeat while (Tutte le facce originali processate?) is (no)
+else (n == 2)
+    repeat
+        :Per ogni faccia originale;
+        
+        :Dividi ogni lato in 2 parti;
+        
+        :Crea 4 nuove facce triangolari;
+    repeat while (Tutte le facce originali processate?) is (no)
+endif
+
+:Aggiorna dimensioni finali mesh;
+
+stop
+@enduml

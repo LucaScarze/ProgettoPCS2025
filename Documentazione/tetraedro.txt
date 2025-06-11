@@ -1,0 +1,19 @@
+@startuml
+start
+
+:Calcola NumCell0Ds, NumCell1Ds, NumCell2Ds da p, q;
+:Alloca spazio per vertici, lati, facce;
+
+:Definisce coordinate vertici;
+:Aggiunge Id e coordinate a Cell0Ds;
+
+:Definisce estremi lati;
+:Aggiunge Id ed estremi a Cell1Ds;
+
+:Definisce facce (3 vertici ciascuna);
+:Per ogni faccia:
+--> Aggiungi vertici alla faccia;
+--> Cerca e aggiungi i 3 lati corrispondenti;
+
+stop
+@enduml

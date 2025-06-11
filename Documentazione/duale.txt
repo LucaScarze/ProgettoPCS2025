@@ -1,0 +1,32 @@
+@startuml
+start
+
+:Inizializza dualmesh;
+
+repeat
+  :Per ogni faccia in mesh;
+  :Calcola baricentro (media vertici);
+  :Aggiungi come vertice a dualmesh;
+repeat while (Tutte le facce processate?) is (No)
+->Yes;
+
+:Costruisci liste adiacenza;
+repeat
+  :Per ogni vertice in mesh;
+  :Trova tutti i lati adiacenti;
+  :Trova tutte le facce adiacenti;
+repeat while (Tutti i vertici processati?) is (No)
+->Yes;
+
+repeat
+  :Per ogni vertice in mesh;
+  :Per ogni faccia adiacente al vertice;
+  :Collega baricentri delle facce adiacenti;
+  :Crea nuove facce nel duale;
+repeat while (Tutti i vertici processati?) is (No)
+->Yes;
+
+:Restituisci dualmesh;
+
+stop
+@enduml
