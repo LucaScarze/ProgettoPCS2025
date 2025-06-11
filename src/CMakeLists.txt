@@ -8,7 +8,7 @@ message(${CMAKE_PROJECT_NAME})
 #qua current è src
 
 list(APPEND src_headers "${CMAKE_CURRENT_SOURCE_DIR}/Utils.hpp") #se aggiungo file header devo aggiungere questa
-list(APPEND src_headers "${CMAKE_CURRENT_SOURCE_DIR}/Polyhedron.hpp")
+list(APPEND src_headers "${CMAKE_CURRENT_SOURCE_DIR}/PolyhedronMesh.hpp")
 
 
 list(APPEND src_sources "${CMAKE_CURRENT_SOURCE_DIR}/Utils.cpp")#se aggiungo cpp qua

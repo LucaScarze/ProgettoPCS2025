@@ -6,6 +6,7 @@
 #include <vector>
 #include "Eigen/Eigen"
 #include <algorithm>
+#include <queue>
 
 using namespace std;
 
@@ -203,7 +204,7 @@ namespace PolyhedronLibrary
 	}
 	
 	
-	void ConstructorPolyhedronCells(unsigned int p,unsigned int q,int b,int c,PolyhedronMesh &mesh){
+	void ConstructorPolyhedronCells(unsigned int p,unsigned int q,PolyhedronMesh &mesh){
 		if(q==3)
 			Tetraedro(p,q,mesh);
 		else if(q==4)
@@ -426,479 +427,361 @@ namespace PolyhedronLibrary
 		vector<vector<unsigned int>> VerticiLivelloS; //vertici interni al "livello" s
 		VerticiLivelloS.reserve(n-2);//n-2 livelli interni
 		vector<unsigned int> livelloS;
-		for(unsigned int i=0;i<old_facce;i++)//for su facce 
+		if(n>2)
 		{
-			MatrixXi NuoviVerticiLato = Eigen::MatrixXi::Zero(n-1, 3); //in colonna contiene id nuovi vertici della triangolazione sul lato nella faccia i
-			lato1 = mesh.Cell2DsEdges[i][0];
-			lato2 = mesh.Cell2DsEdges[i][1];
-			lato3 = mesh.Cell2DsEdges[i][2];
-			vertice1 = mesh.Cell2DsVertices[i][0];
-			vertice2 = mesh.Cell2DsVertices[i][1];
-			vertice3 = mesh.Cell2DsVertices[i][2];
-			//definiamo nuovi punti sui lati se non già esistenti
-			auto it_1 = find(LatiTriangolati.begin(), LatiTriangolati.end(),lato1);
-			if(it_1 == LatiTriangolati.end())
+			for(unsigned int i=0;i<old_facce;i++)//for su facce 
 			{
-				OrdineTriangolazioneLato(0,lato1) = vertice1;
-				OrdineTriangolazioneLato(1,lato1) = vertice2;
-				delta_x = (mesh.Cell0DsCoordinates(0,vertice2)-mesh.Cell0DsCoordinates(0,vertice1))/n;
-				delta_y = (mesh.Cell0DsCoordinates(1,vertice2)-mesh.Cell0DsCoordinates(1,vertice1))/n;
-				delta_z = (mesh.Cell0DsCoordinates(2,vertice2)-mesh.Cell0DsCoordinates(2,vertice1))/n;
-				for(unsigned int j=0;j<n-1;j++)
+				MatrixXi NuoviVerticiLato = Eigen::MatrixXi::Zero(n-1, 3); //in colonna contiene id nuovi vertici della triangolazione sul lato nella faccia i
+				lato1 = mesh.Cell2DsEdges[i][0];
+				lato2 = mesh.Cell2DsEdges[i][1];
+				lato3 = mesh.Cell2DsEdges[i][2];
+				vertice1 = mesh.Cell2DsVertices[i][0];
+				vertice2 = mesh.Cell2DsVertices[i][1];
+				vertice3 = mesh.Cell2DsVertices[i][2];
+				//definiamo nuovi punti sui lati se non già esistenti
+				auto it_1 = find(LatiTriangolati.begin(), LatiTriangolati.end(),lato1);
+				if(it_1 == LatiTriangolati.end())
 				{
-					mesh.Cell0DsId.push_back(h);
-					mesh.Cell0DsCoordinates(0,h) = mesh.Cell0DsCoordinates(0,vertice1)+(j+1)*delta_x;
-					mesh.Cell0DsCoordinates(1,h) = mesh.Cell0DsCoordinates(1,vertice1)+(j+1)*delta_y;
-					mesh.Cell0DsCoordinates(2,h) = mesh.Cell0DsCoordinates(2,vertice1)+(j+1)*delta_z;
-					FirstNuoviVerticiLato(j,lato1)=h;//lo memorizzo per confronti futuri
-					NuoviVerticiLato(j,0)=h;
-					h++;
+					OrdineTriangolazioneLato(0,lato1) = vertice1;
+					OrdineTriangolazioneLato(1,lato1) = vertice2;
+					delta_x = (mesh.Cell0DsCoordinates(0,vertice2)-mesh.Cell0DsCoordinates(0,vertice1))/n;
+					delta_y = (mesh.Cell0DsCoordinates(1,vertice2)-mesh.Cell0DsCoordinates(1,vertice1))/n;
+					delta_z = (mesh.Cell0DsCoordinates(2,vertice2)-mesh.Cell0DsCoordinates(2,vertice1))/n;
+					for(unsigned int j=0;j<n-1;j++)
+					{
+						mesh.Cell0DsId.push_back(h);
+						mesh.Cell0DsCoordinates(0,h) = mesh.Cell0DsCoordinates(0,vertice1)+(j+1)*delta_x;
+						mesh.Cell0DsCoordinates(1,h) = mesh.Cell0DsCoordinates(1,vertice1)+(j+1)*delta_y;
+						mesh.Cell0DsCoordinates(2,h) = mesh.Cell0DsCoordinates(2,vertice1)+(j+1)*delta_z;
+						FirstNuoviVerticiLato(j,lato1)=h;//lo memorizzo per confronti futuri
+						NuoviVerticiLato(j,0)=h;
+						h++;
+					}
+					LatiTriangolati.push_back(lato1);
 				}
-				LatiTriangolati.push_back(lato1);
-			}
-			else if(vertice1 == OrdineTriangolazioneLato(0,lato1) && vertice2 == OrdineTriangolazioneLato(1,lato1)) //controllo se ordine è lo stesso di OrdineTriangolazioneLato, sennò bisogna invertire
-			{
-				for(unsigned int l=0;l<n-1;l++)
-					NuoviVerticiLato(l,0)= FirstNuoviVerticiLato(l,lato1); //nuovi vertici salvati con ordine faccia originale
-			}
-			else
-			{
-				for(unsigned int l=0;l<n-1;l++)
-					NuoviVerticiLato(l,0)= FirstNuoviVerticiLato(n-2-l,lato1);//nuovi vertici salvati in ordine opposto
-			}
-			auto it_2 = find(LatiTriangolati.begin(), LatiTriangolati.end(),lato2);
-			if(it_2 == LatiTriangolati.end())
-			{
-				OrdineTriangolazioneLato(0,lato2) = vertice2;
-				OrdineTriangolazioneLato(1,lato2) = vertice3;
-				delta_x = (mesh.Cell0DsCoordinates(0,vertice3)-mesh.Cell0DsCoordinates(0,vertice2))/n;
-				delta_y = (mesh.Cell0DsCoordinates(1,vertice3)-mesh.Cell0DsCoordinates(1,vertice2))/n;
-				delta_z = (mesh.Cell0DsCoordinates(2,vertice3)-mesh.Cell0DsCoordinates(2,vertice2))/n;
-				for(unsigned int j=0;j<n-1;j++)
+				else if(vertice1 == OrdineTriangolazioneLato(0,lato1) && vertice2 == OrdineTriangolazioneLato(1,lato1)) //controllo se ordine è lo stesso di OrdineTriangolazioneLato, sennò bisogna invertire
 				{
-					mesh.Cell0DsId.push_back(h);
-					mesh.Cell0DsCoordinates(0,h) = mesh.Cell0DsCoordinates(0,vertice2)+(j+1)*delta_x;
-					mesh.Cell0DsCoordinates(1,h) = mesh.Cell0DsCoordinates(1,vertice2)+(j+1)*delta_y;
-					mesh.Cell0DsCoordinates(2,h) = mesh.Cell0DsCoordinates(2,vertice2)+(j+1)*delta_z;
-					FirstNuoviVerticiLato(j,lato2)=h;
-					NuoviVerticiLato(j,1)=h;
-					h++;
+					for(unsigned int l=0;l<n-1;l++)
+						NuoviVerticiLato(l,0)= FirstNuoviVerticiLato(l,lato1); //nuovi vertici salvati con ordine faccia originale
 				}
-			LatiTriangolati.push_back(lato2);
-			}
-			else if(vertice2 == OrdineTriangolazioneLato(0,lato2) && vertice3 == OrdineTriangolazioneLato(1,lato2))
-			{
-				for(unsigned int l=0;l<n-1;l++)
-					NuoviVerticiLato(l,1)= FirstNuoviVerticiLato(l,lato2);
-			}
-			else
-			{
-				for(unsigned int l=0;l<n-1;l++)
-					NuoviVerticiLato(l,1)= FirstNuoviVerticiLato(n-2-l,lato2);	
-			}
-			auto it_3 = find(LatiTriangolati.begin(), LatiTriangolati.end(),lato3);
-			if(it_3 == LatiTriangolati.end())
-			{
-				OrdineTriangolazioneLato(0,lato3) = vertice3;
-				OrdineTriangolazioneLato(1,lato3) = vertice1;
-				delta_x = (mesh.Cell0DsCoordinates(0,vertice1)-mesh.Cell0DsCoordinates(0,vertice3))/n;
-				delta_y = (mesh.Cell0DsCoordinates(1,vertice1)-mesh.Cell0DsCoordinates(1,vertice3))/n;
-				delta_z = (mesh.Cell0DsCoordinates(2,vertice1)-mesh.Cell0DsCoordinates(2,vertice3))/n;
-				for(unsigned int j=0;j<n-1;j++)
+				else
 				{
-					mesh.Cell0DsId.push_back(h);
-					mesh.Cell0DsCoordinates(0,h) = mesh.Cell0DsCoordinates(0,vertice3)+(j+1)*delta_x;
-					mesh.Cell0DsCoordinates(1,h) = mesh.Cell0DsCoordinates(1,vertice3)+(j+1)*delta_y;
-					mesh.Cell0DsCoordinates(2,h) = mesh.Cell0DsCoordinates(2,vertice3)+(j+1)*delta_z;
-					FirstNuoviVerticiLato(j,lato3)=h;
-					NuoviVerticiLato(j,2)=h;
-					h++;
+					for(unsigned int l=0;l<n-1;l++)
+						NuoviVerticiLato(l,0)= FirstNuoviVerticiLato(n-2-l,lato1);//nuovi vertici salvati in ordine opposto
 				}
-			LatiTriangolati.push_back(lato3);
-			}
-			else if(vertice3 == OrdineTriangolazioneLato(0,lato3) && vertice1 == OrdineTriangolazioneLato(1,lato3))
-			{
-				for(unsigned int l=0;l<n-1;l++)
-					NuoviVerticiLato(l,2)= FirstNuoviVerticiLato(l,lato3);
-			}
-			else
-			{
-				for(unsigned int l=0;l<n-1;l++)
-					NuoviVerticiLato(l,2)= FirstNuoviVerticiLato(n-2-l,lato3);
-			}
-			//definizione vertici "interni" alla faccia
-			//considerando lato1 come base del triangolo, "salendo" verso il vertice opposto(vertice3) ad ogni "livello" vertici triangolazione sugli altri
-			//due lati corrisponde un numero di nuovi vertici interni che diminuisce di 1 (a partire da n-1, che è su lato1)
-			for(unsigned int s=0;s<n-2;s++) //for sui "livelli"
-			{
-				delta_x = (mesh.Cell0DsCoordinates(0,NuoviVerticiLato(s,1))-mesh.Cell0DsCoordinates(0,NuoviVerticiLato(n-2-s,2)))/(n-1-s);
-				delta_y = (mesh.Cell0DsCoordinates(1,NuoviVerticiLato(s,1))-mesh.Cell0DsCoordinates(1,NuoviVerticiLato(n-2-s,2)))/(n-1-s);
-				delta_z = (mesh.Cell0DsCoordinates(2,NuoviVerticiLato(s,1))-mesh.Cell0DsCoordinates(2,NuoviVerticiLato(n-2-s,2)))/(n-1-s);
-				for(unsigned int r=0;r<n-2-s;r++)//numero di nuovi punti su "livello" s 
-				{ 
-					mesh.Cell0DsId.push_back(h);
-					//NuoviVerticiLato[lato3][n-2-s] per rispettare l'ordine della numerazione nuovi vertici sui lati
-					mesh.Cell0DsCoordinates(0,h) = mesh.Cell0DsCoordinates(0,NuoviVerticiLato(n-2-s,2))+(r+1)*delta_x;
-					mesh.Cell0DsCoordinates(1,h) = mesh.Cell0DsCoordinates(1,NuoviVerticiLato(n-2-s,2))+(r+1)*delta_y;
-					mesh.Cell0DsCoordinates(2,h) = mesh.Cell0DsCoordinates(2,NuoviVerticiLato(n-2-s,2))+(r+1)*delta_z;
-					livelloS.push_back(h);
-					h++;
+				auto it_2 = find(LatiTriangolati.begin(), LatiTriangolati.end(),lato2);
+				if(it_2 == LatiTriangolati.end())
+				{
+					OrdineTriangolazioneLato(0,lato2) = vertice2;
+					OrdineTriangolazioneLato(1,lato2) = vertice3;
+					delta_x = (mesh.Cell0DsCoordinates(0,vertice3)-mesh.Cell0DsCoordinates(0,vertice2))/n;
+					delta_y = (mesh.Cell0DsCoordinates(1,vertice3)-mesh.Cell0DsCoordinates(1,vertice2))/n;
+					delta_z = (mesh.Cell0DsCoordinates(2,vertice3)-mesh.Cell0DsCoordinates(2,vertice2))/n;
+					for(unsigned int j=0;j<n-1;j++)
+					{
+						mesh.Cell0DsId.push_back(h);
+						mesh.Cell0DsCoordinates(0,h) = mesh.Cell0DsCoordinates(0,vertice2)+(j+1)*delta_x;
+						mesh.Cell0DsCoordinates(1,h) = mesh.Cell0DsCoordinates(1,vertice2)+(j+1)*delta_y;
+						mesh.Cell0DsCoordinates(2,h) = mesh.Cell0DsCoordinates(2,vertice2)+(j+1)*delta_z;
+						FirstNuoviVerticiLato(j,lato2)=h;
+						NuoviVerticiLato(j,1)=h;
+						h++;
+					}
+				LatiTriangolati.push_back(lato2);
 				}
-				VerticiLivelloS.push_back(livelloS);
-				livelloS.clear();
-			}
-			//costruzione dei lati: prima definiamo nuovi lati su ciascun lato della faccia originale se non già esistenti
-			auto it_1_sovra = find(LatiSovrascritti.begin(),LatiSovrascritti.end(),lato1);
-			if(it_1_sovra == LatiSovrascritti.end())
-			{
-				mesh.Cell1DsId.push_back(k);
-				mesh.Cell1DsExtrema(0,k) = vertice1;
-				mesh.Cell1DsExtrema(1,k) = NuoviVerticiLato(0,0);
-				k++;
-				for(unsigned int j=0;j<n-2;j++)
+				else if(vertice2 == OrdineTriangolazioneLato(0,lato2) && vertice3 == OrdineTriangolazioneLato(1,lato2))
+				{
+					for(unsigned int l=0;l<n-1;l++)
+						NuoviVerticiLato(l,1)= FirstNuoviVerticiLato(l,lato2);
+				}
+				else
+				{
+					for(unsigned int l=0;l<n-1;l++)
+						NuoviVerticiLato(l,1)= FirstNuoviVerticiLato(n-2-l,lato2);	
+				}
+				auto it_3 = find(LatiTriangolati.begin(), LatiTriangolati.end(),lato3);
+				if(it_3 == LatiTriangolati.end())
+				{
+					OrdineTriangolazioneLato(0,lato3) = vertice3;
+					OrdineTriangolazioneLato(1,lato3) = vertice1;
+					delta_x = (mesh.Cell0DsCoordinates(0,vertice1)-mesh.Cell0DsCoordinates(0,vertice3))/n;
+					delta_y = (mesh.Cell0DsCoordinates(1,vertice1)-mesh.Cell0DsCoordinates(1,vertice3))/n;
+					delta_z = (mesh.Cell0DsCoordinates(2,vertice1)-mesh.Cell0DsCoordinates(2,vertice3))/n;
+					for(unsigned int j=0;j<n-1;j++)
+					{
+						mesh.Cell0DsId.push_back(h);
+						mesh.Cell0DsCoordinates(0,h) = mesh.Cell0DsCoordinates(0,vertice3)+(j+1)*delta_x;
+						mesh.Cell0DsCoordinates(1,h) = mesh.Cell0DsCoordinates(1,vertice3)+(j+1)*delta_y;
+						mesh.Cell0DsCoordinates(2,h) = mesh.Cell0DsCoordinates(2,vertice3)+(j+1)*delta_z;
+						FirstNuoviVerticiLato(j,lato3)=h;
+						NuoviVerticiLato(j,2)=h;
+						h++;
+					}
+				LatiTriangolati.push_back(lato3);
+				}
+				else if(vertice3 == OrdineTriangolazioneLato(0,lato3) && vertice1 == OrdineTriangolazioneLato(1,lato3))
+				{
+					for(unsigned int l=0;l<n-1;l++)
+						NuoviVerticiLato(l,2)= FirstNuoviVerticiLato(l,lato3);
+				}
+				else
+				{
+					for(unsigned int l=0;l<n-1;l++)
+						NuoviVerticiLato(l,2)= FirstNuoviVerticiLato(n-2-l,lato3);
+				}
+				//definizione vertici "interni" alla faccia
+				//considerando lato1 come base del triangolo, "salendo" verso il vertice opposto(vertice3) ad ogni "livello" vertici triangolazione sugli altri
+				//due lati corrisponde un numero di nuovi vertici interni che diminuisce di 1 (a partire da n-1, che è su lato1)
+				for(unsigned int s=0;s<n-2;s++) //for sui "livelli"
+				{
+					delta_x = (mesh.Cell0DsCoordinates(0,NuoviVerticiLato(s,1))-mesh.Cell0DsCoordinates(0,NuoviVerticiLato(n-2-s,2)))/(n-1-s);
+					delta_y = (mesh.Cell0DsCoordinates(1,NuoviVerticiLato(s,1))-mesh.Cell0DsCoordinates(1,NuoviVerticiLato(n-2-s,2)))/(n-1-s);
+					delta_z = (mesh.Cell0DsCoordinates(2,NuoviVerticiLato(s,1))-mesh.Cell0DsCoordinates(2,NuoviVerticiLato(n-2-s,2)))/(n-1-s);
+					for(unsigned int r=0;r<n-2-s;r++)//numero di nuovi punti su "livello" s 
+					{ 
+						mesh.Cell0DsId.push_back(h);
+						//NuoviVerticiLato[lato3][n-2-s] per rispettare l'ordine della numerazione nuovi vertici sui lati
+						mesh.Cell0DsCoordinates(0,h) = mesh.Cell0DsCoordinates(0,NuoviVerticiLato(n-2-s,2))+(r+1)*delta_x;
+						mesh.Cell0DsCoordinates(1,h) = mesh.Cell0DsCoordinates(1,NuoviVerticiLato(n-2-s,2))+(r+1)*delta_y;
+						mesh.Cell0DsCoordinates(2,h) = mesh.Cell0DsCoordinates(2,NuoviVerticiLato(n-2-s,2))+(r+1)*delta_z;
+						livelloS.push_back(h);
+						h++;
+					}
+					VerticiLivelloS.push_back(livelloS);
+					livelloS.clear();
+				}
+				//costruzione dei lati: prima definiamo nuovi lati su ciascun lato della faccia originale se non già esistenti
+				auto it_1_sovra = find(LatiSovrascritti.begin(),LatiSovrascritti.end(),lato1);
+				if(it_1_sovra == LatiSovrascritti.end())
 				{
 					mesh.Cell1DsId.push_back(k);
-					mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(j,0);
-					mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(j+1,0);
+					mesh.Cell1DsExtrema(0,k) = vertice1;
+					mesh.Cell1DsExtrema(1,k) = NuoviVerticiLato(0,0);
+					k++;
+					for(unsigned int j=0;j<n-2;j++)
+					{
+						mesh.Cell1DsId.push_back(k);
+						mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(j,0);
+						mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(j+1,0);
+						k++;
+					}
+					mesh.Cell1DsId.push_back(k);
+					mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(n-2,0);
+					mesh.Cell1DsExtrema(1,k)=vertice2;
+					k++;
+					LatiSovrascritti.push_back(lato1);
+				}
+				auto it_2_sovra = find(LatiSovrascritti.begin(),LatiSovrascritti.end(),lato2);
+				if(it_2_sovra == LatiSovrascritti.end())
+				{
+					mesh.Cell1DsId.push_back(k);				
+					mesh.Cell1DsExtrema(0,k) = vertice2;
+					mesh.Cell1DsExtrema(1,k) = NuoviVerticiLato(0,1);
+					k++;
+					for(unsigned int j=0;j<n-2;j++)
+					{
+						mesh.Cell1DsId.push_back(k);
+						mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(j,1);
+						mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(j+1,1);
+						k++;
+					}
+					mesh.Cell1DsId.push_back(k);				
+					mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(n-2,1);
+					mesh.Cell1DsExtrema(1,k)=vertice3;
+					k++;
+					LatiSovrascritti.push_back(lato2);
+				}
+				auto it_3_sovra = find(LatiSovrascritti.begin(),LatiSovrascritti.end(),lato3);
+				if(it_3_sovra == LatiSovrascritti.end())
+				{
+					mesh.Cell1DsId.push_back(k);
+					mesh.Cell1DsExtrema(0,k) = vertice3;
+					mesh.Cell1DsExtrema(1,k) = NuoviVerticiLato(0,2);
+					k++;
+					for(unsigned int j=0;j<n-2;j++)
+					{
+						mesh.Cell1DsId.push_back(k);
+						mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(j,2);
+						mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(j+1,2);
+						k++;
+					}
+					mesh.Cell1DsId.push_back(k);
+					mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(n-2,2);
+					mesh.Cell1DsExtrema(1,k)=vertice1;
+					k++;
+					LatiSovrascritti.push_back(lato3);
+				}
+				//costruzione lati interni
+				//colleghiamo prima lato1 al primo livello
+				mesh.Cell1DsId.push_back(k);
+				mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(0,0);
+				mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(n-2,2);
+				k++;
+				mesh.Cell1DsId.push_back(k);
+				mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(0,0);
+				mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[0][0];
+				k++;
+				for(unsigned int f=0;f<n-3;f++)//for sui vertici centrali di NuoviVerticiLato
+				{
+					mesh.Cell1DsId.push_back(k);
+					mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(f+1,0);
+					mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[0][f];
+					k++;
+					mesh.Cell1DsId.push_back(k);
+					mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(f+1,0);
+					mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[0][f+1];
 					k++;
 				}
 				mesh.Cell1DsId.push_back(k);
 				mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(n-2,0);
-				mesh.Cell1DsExtrema(1,k)=vertice2;
+				mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[0][n-3];
 				k++;
-				LatiSovrascritti.push_back(lato1);
-			}
-			auto it_2_sovra = find(LatiSovrascritti.begin(),LatiSovrascritti.end(),lato2);
-			if(it_2_sovra == LatiSovrascritti.end())
-			{
-				mesh.Cell1DsId.push_back(k);				
-				mesh.Cell1DsExtrema(0,k) = vertice2;
-				mesh.Cell1DsExtrema(1,k) = NuoviVerticiLato(0,1);
-				k++;
-				for(unsigned int j=0;j<n-2;j++)
-				{
+				mesh.Cell1DsId.push_back(k);
+				mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(n-2,0);
+				mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(0,1);
+				k++;			
+				//costruiamo i lati degli altri livelli(manca ultima "riga orizzontale")
+				for(unsigned int s=0;s<n-2;s++)
+				{	
+					//costruzione lati orizzontali livelloS
 					mesh.Cell1DsId.push_back(k);
-					mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(j,1);
-					mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(j+1,1);
+					mesh.Cell1DsExtrema(0,k) = NuoviVerticiLato(n-2-s,2);
+					mesh.Cell1DsExtrema(1,k) = VerticiLivelloS[s][0];
 					k++;
-				}
-				mesh.Cell1DsId.push_back(k);				
-				mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(n-2,1);
-				mesh.Cell1DsExtrema(1,k)=vertice3;
-				k++;
-				LatiSovrascritti.push_back(lato2);
-			}
-			auto it_3_sovra = find(LatiSovrascritti.begin(),LatiSovrascritti.end(),lato3);
-			if(it_3_sovra == LatiSovrascritti.end())
-			{
-				mesh.Cell1DsId.push_back(k);
-				mesh.Cell1DsExtrema(0,k) = vertice3;
-				mesh.Cell1DsExtrema(1,k) = NuoviVerticiLato(0,2);
-				k++;
-				for(unsigned int j=0;j<n-2;j++)
-				{
-					mesh.Cell1DsId.push_back(k);
-					mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(j,2);
-					mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(j+1,2);
-					k++;
-				}
-				mesh.Cell1DsId.push_back(k);
-				mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(n-2,2);
-				mesh.Cell1DsExtrema(1,k)=vertice1;
-				k++;
-				LatiSovrascritti.push_back(lato3);
-			}
-			//costruzione lati interni
-			//colleghiamo prima lato1 al primo livello
-			mesh.Cell1DsId.push_back(k);
-			mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(0,0);
-			mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(n-2,2);
-			k++;
-			mesh.Cell1DsId.push_back(k);
-			mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(0,0);
-			mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[0][0];
-			k++;
-			for(unsigned int f=0;f<n-3;f++)//for sui vertici centrali di NuoviVerticiLato
-			{
-				mesh.Cell1DsId.push_back(k);
-				mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(f+1,0);
-				mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[0][f];
-				k++;
-				mesh.Cell1DsId.push_back(k);
-				mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(f+1,0);
-				mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[0][f+1];
-				k++;
-			}
-			mesh.Cell1DsId.push_back(k);
-			mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(n-2,0);
-			mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[0][n-3];
-			k++;
-			mesh.Cell1DsId.push_back(k);
-			mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(n-2,0);
-			mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(0,1);
-			k++;			
-	 		//costruiamo i lati degli altri livelli(manca ultima "riga orizzontale")
-			for(unsigned int s=0;s<n-2;s++)
-			{	
-				//costruzione lati orizzontali livelloS
-				mesh.Cell1DsId.push_back(k);
-				mesh.Cell1DsExtrema(0,k) = NuoviVerticiLato(n-2-s,2);
-				mesh.Cell1DsExtrema(1,k) = VerticiLivelloS[s][0];
-				k++;
-				for(unsigned int f=0;f<n-3-s;f++)
-				{
-					mesh.Cell1DsId.push_back(k);
-					mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[s][f];
-					mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[s][f+1];
-					k++;
-				}
-				mesh.Cell1DsId.push_back(k);
-				mesh.Cell1DsExtrema(0,k) = VerticiLivelloS[s][n-3-s];
-				mesh.Cell1DsExtrema(1,k) = NuoviVerticiLato(s,1);
-				k++;
-			}
-			mesh.Cell1DsId.push_back(k);
-			mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(0,2);
-			mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(n-2,1);
-			k++;
-			//costruzione lati obliqui sui livelli(ultimo a parte)
-			for(unsigned int s=0;s<n-3;s++)
-			{
-				for(unsigned int f=0;f<n-2-s;f++) 
-				{
-					if(f==0)
-					{
-						mesh.Cell1DsId.push_back(k);
-						mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[s][0];
-						mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(n-2-s-1,2);
-						k++;
- 						mesh.Cell1DsId.push_back(k);
-						mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[s][0];
-						mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[s+1][0];
-						k++; 
-					}
-					else if(f<n-3-s)
+					for(unsigned int f=0;f<n-3-s;f++)
 					{
 						mesh.Cell1DsId.push_back(k);
 						mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[s][f];
-						mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[s+1][f-1];
-						k++;
-						mesh.Cell1DsId.push_back(k);
-						mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[s][f];
-						mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[s+1][f];
+						mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[s][f+1];
 						k++;
 					}
-					else
-					{
-						mesh.Cell1DsId.push_back(k);
-						mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[s][n-3-s];
-						mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[s+1][n-3-s-1];
-						k++;
-						mesh.Cell1DsId.push_back(k);
- 						mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[s][n-3-s];
-						mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(s+1,1);
-						k++; 
-					}
-				}	
-			}
-			mesh.Cell1DsId.push_back(k);
-			mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[n-3][0];//c'è solo un vertice su ultimo livello
-			mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(0,2);
-			k++;
-			mesh.Cell1DsId.push_back(k);
- 			mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[n-3][0];
-			mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(n-2,1);
-			k++; 
-			//costruzione delle facce
-			//costruiamo prime facce da lato1 al livello 0
-			//costruzione facce "orientate" come faccia originale
-			//costruzione faccia con vertice1
- 			mesh.Cell2DsId.push_back(t);
-			NewCell2DsVertices.push_back(vector<unsigned int>(3));
-			NewCell2DsVertices[t][0] = vertice1;
-			NewCell2DsVertices[t][1] = NuoviVerticiLato(0,0);
-			NewCell2DsVertices[t][2] = NuoviVerticiLato(n-2,2);
-			NewCell2DsEdges.push_back(vector<unsigned int>(3));
-			for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
-			{
-				//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
-				for(unsigned int l=0;l<NewNumCell1Ds;l++){
-					if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
-						mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
-					{
-						NewCell2DsEdges[t][j] = l;
-						break;
-					}
+					mesh.Cell1DsId.push_back(k);
+					mesh.Cell1DsExtrema(0,k) = VerticiLivelloS[s][n-3-s];
+					mesh.Cell1DsExtrema(1,k) = NuoviVerticiLato(s,1);
+					k++;
 				}
-			}
-			//memorizziamo lato che va da ultimo vertice al primo
-			for(unsigned int l=0;l<NewNumCell1Ds;l++){
-					if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
-						mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
-					{
-						NewCell2DsEdges[t][2] = l;
-						break;
-					}
-			}
-			t++; 
- 			//costruzione facce interne
-			for(unsigned int f=0;f<n-2;f++)
-			{
-				mesh.Cell2DsId.push_back(t);
-				NewCell2DsVertices.push_back(vector<unsigned int>(3));
-				NewCell2DsVertices[t][0] = NuoviVerticiLato(f,0);
-				NewCell2DsVertices[t][1] = NuoviVerticiLato(f+1,0);
-				NewCell2DsVertices[t][2] = VerticiLivelloS[0][f];
-				NewCell2DsEdges.push_back(vector<unsigned int>(3));
-				for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
+				mesh.Cell1DsId.push_back(k);
+				mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(0,2);
+				mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(n-2,1);
+				k++;
+				//costruzione lati obliqui sui livelli(ultimo a parte)
+				for(unsigned int s=0;s<n-3;s++)
 				{
-					//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
-					for(unsigned int l=0;l<NewNumCell1Ds;l++){
-						if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
-							mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
+					for(unsigned int f=0;f<n-2-s;f++) 
+					{
+						if(f==0)
 						{
-							NewCell2DsEdges[t][j] = l;
-							break;
+							mesh.Cell1DsId.push_back(k);
+							mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[s][0];
+							mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(n-2-s-1,2);
+							k++;
+							mesh.Cell1DsId.push_back(k);
+							mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[s][0];
+							mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[s+1][0];
+							k++; 
 						}
-					}
-				}
-				//memorizziamo lato che va da ultimo vertice al primo
-				for(unsigned int l=0;l<NewNumCell1Ds;l++){
-						if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
-							mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
+						else if(f<n-3-s)
 						{
-							NewCell2DsEdges[t][2] = l;
-							break;
+							mesh.Cell1DsId.push_back(k);
+							mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[s][f];
+							mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[s+1][f-1];
+							k++;
+							mesh.Cell1DsId.push_back(k);
+							mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[s][f];
+							mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[s+1][f];
+							k++;
 						}
-				}
-				t++;
-			}
-			//costruzione faccia con vertice 2
-			mesh.Cell2DsId.push_back(t);
-			NewCell2DsVertices.push_back(vector<unsigned int>(3));
-			NewCell2DsVertices[t][0] = NuoviVerticiLato(n-2,0);
-			NewCell2DsVertices[t][1] = vertice2;
-			NewCell2DsVertices[t][2] = NuoviVerticiLato(0,1);
-			NewCell2DsEdges.push_back(vector<unsigned int>(3));
-			for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
-			{
-				//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
-				for(unsigned int l=0;l<NewNumCell1Ds;l++){
-					if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
-						mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
-					{
-						NewCell2DsEdges[t][j] = l;
-						break;
-					}
-				}
-			}
-			//memorizziamo lato che va da ultimo vertice al primo
-			for(unsigned int l=0;l<NewNumCell1Ds;l++){
-					if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
-						mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
-					{
-						NewCell2DsEdges[t][2] = l;
-						break;
-					}
-			}
-			t++;
-			//costruzione facce "orientate" al contrario della faccia originale
-			mesh.Cell2DsId.push_back(t);
-			NewCell2DsVertices.push_back(vector<unsigned int>(3));
-			NewCell2DsVertices[t][0] = NuoviVerticiLato(0,0);
-			NewCell2DsVertices[t][1] = VerticiLivelloS[0][0];
-			NewCell2DsVertices[t][2] = NuoviVerticiLato(n-2,2);
-			NewCell2DsEdges.push_back(vector<unsigned int>(3));
-			for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
-			{
-				//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
-				for(unsigned int l=0;l<NewNumCell1Ds;l++){
-					if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
-						mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
-					{
-						NewCell2DsEdges[t][j] = l;
-						break;
-					}
-				}
-			}
-			//memorizziamo lato che va da ultimo vertice al primo
-			for(unsigned int l=0;l<NewNumCell1Ds;l++){
-					if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
-						mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
-					{
-						NewCell2DsEdges[t][2] = l;
-						break;
-					}
-			}
-			t++;
-			for(unsigned int f=1;f<n-2;f++)
-			{
-				mesh.Cell2DsId.push_back(t);
-				NewCell2DsVertices.push_back(vector<unsigned int>(3));
-				NewCell2DsVertices[t][0] = NuoviVerticiLato(f,0);
-				NewCell2DsVertices[t][1] = VerticiLivelloS[0][f];
-				NewCell2DsVertices[t][2] = VerticiLivelloS[0][f-1];
-				NewCell2DsEdges.push_back(vector<unsigned int>(3));
-				for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
-				{
-					//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
-					for(unsigned int l=0;l<NewNumCell1Ds;l++){
-						if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
-							mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
+						else
 						{
-							NewCell2DsEdges[t][j] = l;
-							break;
+							mesh.Cell1DsId.push_back(k);
+							mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[s][n-3-s];
+							mesh.Cell1DsExtrema(1,k)=VerticiLivelloS[s+1][n-3-s-1];
+							k++;
+							mesh.Cell1DsId.push_back(k);
+							mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[s][n-3-s];
+							mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(s+1,1);
+							k++; 
 						}
-					}
+					}	
 				}
-				//memorizziamo lato che va da ultimo vertice al primo
-				for(unsigned int l=0;l<NewNumCell1Ds;l++){
-						if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
-							mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
-						{
-							NewCell2DsEdges[t][2] = l;
-							break;
-						}
-				}
-				t++;
-			}
-			mesh.Cell2DsId.push_back(t);
-			NewCell2DsVertices.push_back(vector<unsigned int>(3));
-			NewCell2DsVertices[t][0] = NuoviVerticiLato(n-2,0);
-			NewCell2DsVertices[t][1] = NuoviVerticiLato(0,1);
-			NewCell2DsVertices[t][2] = VerticiLivelloS[0][n-3];
-			NewCell2DsEdges.push_back(vector<unsigned int>(3));
-			for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
-			{
-				//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
-				for(unsigned int l=0;l<NewNumCell1Ds;l++){
-					if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
-						mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
-					{
-						NewCell2DsEdges[t][j] = l;
-						break;
-					}
-				}
-			}
-			//memorizziamo lato che va da ultimo vertice al primo
-			for(unsigned int l=0;l<NewNumCell1Ds;l++){
-					if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
-						mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
-					{
-						NewCell2DsEdges[t][2] = l;
-						break;
-					}
-			}
-			t++;
-			//costruzione facce dal livello 0 all'ultimo livello
-			for(unsigned int s=0;s<n-3;s++)
-			{
+				mesh.Cell1DsId.push_back(k);
+				mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[n-3][0];//c'è solo un vertice su ultimo livello
+				mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(0,2);
+				k++;
+				mesh.Cell1DsId.push_back(k);
+				mesh.Cell1DsExtrema(0,k)=VerticiLivelloS[n-3][0];
+				mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(n-2,1);
+				k++; 
+				//costruzione delle facce
+				//costruiamo prime facce da lato1 al livello 0
 				//costruzione facce "orientate" come faccia originale
+				//costruzione faccia con vertice1
 				mesh.Cell2DsId.push_back(t);
 				NewCell2DsVertices.push_back(vector<unsigned int>(3));
-				NewCell2DsVertices[t][0] = NuoviVerticiLato(n-2-s,2);
-				NewCell2DsVertices[t][1] = VerticiLivelloS[s][0];
-				NewCell2DsVertices[t][2] = NuoviVerticiLato(n-2-s-1,2);
+				NewCell2DsVertices[t][0] = vertice1;
+				NewCell2DsVertices[t][1] = NuoviVerticiLato(0,0);
+				NewCell2DsVertices[t][2] = NuoviVerticiLato(n-2,2);
+				NewCell2DsEdges.push_back(vector<unsigned int>(3));
+				for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
+				{
+					//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
+					for(unsigned int l=0;l<NewNumCell1Ds;l++){
+						if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
+							mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
+						{
+							NewCell2DsEdges[t][j] = l;
+							break;
+						}
+					}
+				}
+				//memorizziamo lato che va da ultimo vertice al primo
+				for(unsigned int l=0;l<NewNumCell1Ds;l++){
+						if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
+							mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
+						{
+							NewCell2DsEdges[t][2] = l;
+							break;
+						}
+				}
+				t++; 
+				//costruzione facce interne
+				for(unsigned int f=0;f<n-2;f++)
+				{
+					mesh.Cell2DsId.push_back(t);
+					NewCell2DsVertices.push_back(vector<unsigned int>(3));
+					NewCell2DsVertices[t][0] = NuoviVerticiLato(f,0);
+					NewCell2DsVertices[t][1] = NuoviVerticiLato(f+1,0);
+					NewCell2DsVertices[t][2] = VerticiLivelloS[0][f];
+					NewCell2DsEdges.push_back(vector<unsigned int>(3));
+					for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
+					{
+						//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
+						for(unsigned int l=0;l<NewNumCell1Ds;l++){
+							if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
+								mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
+							{
+								NewCell2DsEdges[t][j] = l;
+								break;
+							}
+						}
+					}
+					//memorizziamo lato che va da ultimo vertice al primo
+					for(unsigned int l=0;l<NewNumCell1Ds;l++){
+							if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
+								mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
+							{
+								NewCell2DsEdges[t][2] = l;
+								break;
+							}
+					}
+					t++;
+				}
+				//costruzione faccia con vertice 2
+				mesh.Cell2DsId.push_back(t);
+				NewCell2DsVertices.push_back(vector<unsigned int>(3));
+				NewCell2DsVertices[t][0] = NuoviVerticiLato(n-2,0);
+				NewCell2DsVertices[t][1] = vertice2;
+				NewCell2DsVertices[t][2] = NuoviVerticiLato(0,1);
 				NewCell2DsEdges.push_back(vector<unsigned int>(3));
 				for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
 				{
@@ -922,13 +805,42 @@ namespace PolyhedronLibrary
 						}
 				}
 				t++;
-				for(unsigned int f=0;f<n-3-s;f++)
+				//costruzione facce "orientate" al contrario della faccia originale
+				mesh.Cell2DsId.push_back(t);
+				NewCell2DsVertices.push_back(vector<unsigned int>(3));
+				NewCell2DsVertices[t][0] = NuoviVerticiLato(0,0);
+				NewCell2DsVertices[t][1] = VerticiLivelloS[0][0];
+				NewCell2DsVertices[t][2] = NuoviVerticiLato(n-2,2);
+				NewCell2DsEdges.push_back(vector<unsigned int>(3));
+				for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
+				{
+					//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
+					for(unsigned int l=0;l<NewNumCell1Ds;l++){
+						if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
+							mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
+						{
+							NewCell2DsEdges[t][j] = l;
+							break;
+						}
+					}
+				}
+				//memorizziamo lato che va da ultimo vertice al primo
+				for(unsigned int l=0;l<NewNumCell1Ds;l++){
+						if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
+							mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
+						{
+							NewCell2DsEdges[t][2] = l;
+							break;
+						}
+				}
+				t++;
+				for(unsigned int f=1;f<n-2;f++)
 				{
 					mesh.Cell2DsId.push_back(t);
 					NewCell2DsVertices.push_back(vector<unsigned int>(3));
-					NewCell2DsVertices[t][0] = VerticiLivelloS[s][f];
-					NewCell2DsVertices[t][1] = VerticiLivelloS[s][f+1];
-					NewCell2DsVertices[t][2] = VerticiLivelloS[s+1][f];
+					NewCell2DsVertices[t][0] = NuoviVerticiLato(f,0);
+					NewCell2DsVertices[t][1] = VerticiLivelloS[0][f];
+					NewCell2DsVertices[t][2] = VerticiLivelloS[0][f-1];
 					NewCell2DsEdges.push_back(vector<unsigned int>(3));
 					for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
 					{
@@ -955,9 +867,9 @@ namespace PolyhedronLibrary
 				}
 				mesh.Cell2DsId.push_back(t);
 				NewCell2DsVertices.push_back(vector<unsigned int>(3));
-				NewCell2DsVertices[t][0] = VerticiLivelloS[s][n-3-s];
-				NewCell2DsVertices[t][1] = NuoviVerticiLato(s,1);
-				NewCell2DsVertices[t][2] = NuoviVerticiLato(s+1,1);
+				NewCell2DsVertices[t][0] = NuoviVerticiLato(n-2,0);
+				NewCell2DsVertices[t][1] = NuoviVerticiLato(0,1);
+				NewCell2DsVertices[t][2] = VerticiLivelloS[0][n-3];
 				NewCell2DsEdges.push_back(vector<unsigned int>(3));
 				for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
 				{
@@ -981,42 +893,162 @@ namespace PolyhedronLibrary
 						}
 				}
 				t++;
-				//costruzione facce "orientate" al contrario
-				mesh.Cell2DsId.push_back(t);
-				NewCell2DsVertices.push_back(vector<unsigned int>(3));
-				NewCell2DsVertices[t][0] = VerticiLivelloS[s][0];
-				NewCell2DsVertices[t][1] = VerticiLivelloS[s+1][0];
-				NewCell2DsVertices[t][2] = NuoviVerticiLato(n-2-s-1,2);
-				NewCell2DsEdges.push_back(vector<unsigned int>(3));
-				for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
+				//costruzione facce dal livello 0 all'ultimo livello
+				for(unsigned int s=0;s<n-3;s++)
 				{
-					//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
-					for(unsigned int l=0;l<NewNumCell1Ds;l++){
-						if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
-							mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
-						{
-							NewCell2DsEdges[t][j] = l;
-							break;
-						}
-					}
-				}
-				//memorizziamo lato che va da ultimo vertice al primo
-				for(unsigned int l=0;l<NewNumCell1Ds;l++){
-						if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
-							mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
-						{
-							NewCell2DsEdges[t][2] = l;
-							break;
-						}
-				}
-				t++;
-				for(unsigned int f=1;f<n-3-s;f++)
-				{
+					//costruzione facce "orientate" come faccia originale
 					mesh.Cell2DsId.push_back(t);
 					NewCell2DsVertices.push_back(vector<unsigned int>(3));
-					NewCell2DsVertices[t][0] = VerticiLivelloS[s][f];
-					NewCell2DsVertices[t][1] = VerticiLivelloS[s+1][f];
-					NewCell2DsVertices[t][2] = VerticiLivelloS[s+1][f-1];
+					NewCell2DsVertices[t][0] = NuoviVerticiLato(n-2-s,2);
+					NewCell2DsVertices[t][1] = VerticiLivelloS[s][0];
+					NewCell2DsVertices[t][2] = NuoviVerticiLato(n-2-s-1,2);
+					NewCell2DsEdges.push_back(vector<unsigned int>(3));
+					for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
+					{
+						//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
+						for(unsigned int l=0;l<NewNumCell1Ds;l++){
+							if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
+								mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
+							{
+								NewCell2DsEdges[t][j] = l;
+								break;
+							}
+						}
+					}
+					//memorizziamo lato che va da ultimo vertice al primo
+					for(unsigned int l=0;l<NewNumCell1Ds;l++){
+							if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
+								mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
+							{
+								NewCell2DsEdges[t][2] = l;
+								break;
+							}
+					}
+					t++;
+					for(unsigned int f=0;f<n-3-s;f++)
+					{
+						mesh.Cell2DsId.push_back(t);
+						NewCell2DsVertices.push_back(vector<unsigned int>(3));
+						NewCell2DsVertices[t][0] = VerticiLivelloS[s][f];
+						NewCell2DsVertices[t][1] = VerticiLivelloS[s][f+1];
+						NewCell2DsVertices[t][2] = VerticiLivelloS[s+1][f];
+						NewCell2DsEdges.push_back(vector<unsigned int>(3));
+						for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
+						{
+							//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
+							for(unsigned int l=0;l<NewNumCell1Ds;l++){
+								if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
+									mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
+								{
+									NewCell2DsEdges[t][j] = l;
+									break;
+								}
+							}
+						}
+						//memorizziamo lato che va da ultimo vertice al primo
+						for(unsigned int l=0;l<NewNumCell1Ds;l++){
+								if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
+									mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
+								{
+									NewCell2DsEdges[t][2] = l;
+									break;
+								}
+						}
+						t++;
+					}
+					mesh.Cell2DsId.push_back(t);
+					NewCell2DsVertices.push_back(vector<unsigned int>(3));
+					NewCell2DsVertices[t][0] = VerticiLivelloS[s][n-3-s];
+					NewCell2DsVertices[t][1] = NuoviVerticiLato(s,1);
+					NewCell2DsVertices[t][2] = NuoviVerticiLato(s+1,1);
+					NewCell2DsEdges.push_back(vector<unsigned int>(3));
+					for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
+					{
+						//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
+						for(unsigned int l=0;l<NewNumCell1Ds;l++){
+							if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
+								mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
+							{
+								NewCell2DsEdges[t][j] = l;
+								break;
+							}
+						}
+					}
+					//memorizziamo lato che va da ultimo vertice al primo
+					for(unsigned int l=0;l<NewNumCell1Ds;l++){
+							if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
+								mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
+							{
+								NewCell2DsEdges[t][2] = l;
+								break;
+							}
+					}
+					t++;
+					//costruzione facce "orientate" al contrario
+					mesh.Cell2DsId.push_back(t);
+					NewCell2DsVertices.push_back(vector<unsigned int>(3));
+					NewCell2DsVertices[t][0] = VerticiLivelloS[s][0];
+					NewCell2DsVertices[t][1] = VerticiLivelloS[s+1][0];
+					NewCell2DsVertices[t][2] = NuoviVerticiLato(n-2-s-1,2);
+					NewCell2DsEdges.push_back(vector<unsigned int>(3));
+					for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
+					{
+						//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
+						for(unsigned int l=0;l<NewNumCell1Ds;l++){
+							if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
+								mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
+							{
+								NewCell2DsEdges[t][j] = l;
+								break;
+							}
+						}
+					}
+					//memorizziamo lato che va da ultimo vertice al primo
+					for(unsigned int l=0;l<NewNumCell1Ds;l++){
+							if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
+								mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
+							{
+								NewCell2DsEdges[t][2] = l;
+								break;
+							}
+					}
+					t++;
+					for(unsigned int f=1;f<n-3-s;f++)
+					{
+						mesh.Cell2DsId.push_back(t);
+						NewCell2DsVertices.push_back(vector<unsigned int>(3));
+						NewCell2DsVertices[t][0] = VerticiLivelloS[s][f];
+						NewCell2DsVertices[t][1] = VerticiLivelloS[s+1][f];
+						NewCell2DsVertices[t][2] = VerticiLivelloS[s+1][f-1];
+						NewCell2DsEdges.push_back(vector<unsigned int>(3));
+						for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
+						{
+							//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
+							for(unsigned int l=0;l<NewNumCell1Ds;l++){
+								if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
+									mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
+								{
+									NewCell2DsEdges[t][j] = l;
+									break;
+								}
+							}
+						}
+						//memorizziamo lato che va da ultimo vertice al primo
+						for(unsigned int l=0;l<NewNumCell1Ds;l++){
+								if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
+									mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
+								{
+									NewCell2DsEdges[t][2] = l;
+									break;
+								}
+						}
+						t++;
+					}
+					mesh.Cell2DsId.push_back(t);
+					NewCell2DsVertices.push_back(vector<unsigned int>(3));
+					NewCell2DsVertices[t][0] = VerticiLivelloS[s][n-3-s];
+					NewCell2DsVertices[t][1] = NuoviVerticiLato(s+1,1);
+					NewCell2DsVertices[t][2] = VerticiLivelloS[s+1][n-3-s-1];
 					NewCell2DsEdges.push_back(vector<unsigned int>(3));
 					for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
 					{
@@ -1041,11 +1073,13 @@ namespace PolyhedronLibrary
 					}
 					t++;
 				}
+				//ultimo livello
+				//facce "orientate" come faccia originale
 				mesh.Cell2DsId.push_back(t);
 				NewCell2DsVertices.push_back(vector<unsigned int>(3));
-				NewCell2DsVertices[t][0] = VerticiLivelloS[s][n-3-s];
-				NewCell2DsVertices[t][1] = NuoviVerticiLato(s+1,1);
-				NewCell2DsVertices[t][2] = VerticiLivelloS[s+1][n-3-s-1];
+				NewCell2DsVertices[t][0] = NuoviVerticiLato(1,2);
+				NewCell2DsVertices[t][1] = VerticiLivelloS[n-3][0];
+				NewCell2DsVertices[t][2] = NuoviVerticiLato(0,2);
 				NewCell2DsEdges.push_back(vector<unsigned int>(3));
 				for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
 				{
@@ -1069,124 +1103,333 @@ namespace PolyhedronLibrary
 						}
 				}
 				t++;
-			}
-			//ultimo livello
-			//facce "orientate" come faccia originale
-			mesh.Cell2DsId.push_back(t);
-			NewCell2DsVertices.push_back(vector<unsigned int>(3));
-			NewCell2DsVertices[t][0] = NuoviVerticiLato(1,2);
-			NewCell2DsVertices[t][1] = VerticiLivelloS[n-3][0];
-			NewCell2DsVertices[t][2] = NuoviVerticiLato(0,2);
-			NewCell2DsEdges.push_back(vector<unsigned int>(3));
-			for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
-			{
-				//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
-				for(unsigned int l=0;l<NewNumCell1Ds;l++){
-					if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
-						mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
-					{
-						NewCell2DsEdges[t][j] = l;
-						break;
+				mesh.Cell2DsId.push_back(t);
+				NewCell2DsVertices.push_back(vector<unsigned int>(3));
+				NewCell2DsVertices[t][0] = VerticiLivelloS[n-3][0];
+				NewCell2DsVertices[t][1] = NuoviVerticiLato(n-3,1);
+				NewCell2DsVertices[t][2] = NuoviVerticiLato(n-2,1);
+				NewCell2DsEdges.push_back(vector<unsigned int>(3));
+				for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
+				{
+					//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
+					for(unsigned int l=0;l<NewNumCell1Ds;l++){
+						if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
+							mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
+						{
+							NewCell2DsEdges[t][j] = l;
+							break;
+						}
 					}
 				}
+				//memorizziamo lato che va da ultimo vertice al primo
+				for(unsigned int l=0;l<NewNumCell1Ds;l++){
+						if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
+							mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
+						{
+							NewCell2DsEdges[t][2] = l;
+							break;
+						}
+				}
+				t++;
+				//faccia "orientata" al contrario
+				mesh.Cell2DsId.push_back(t);
+				NewCell2DsVertices.push_back(vector<unsigned int>(3));
+				NewCell2DsVertices[t][0] = VerticiLivelloS[n-3][0];
+				NewCell2DsVertices[t][1] = NuoviVerticiLato(n-2,1);
+				NewCell2DsVertices[t][2] = NuoviVerticiLato(0,2);
+				NewCell2DsEdges.push_back(vector<unsigned int>(3));
+				for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
+				{
+					//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
+					for(unsigned int l=0;l<NewNumCell1Ds;l++){
+						if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
+							mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
+						{
+							NewCell2DsEdges[t][j] = l;
+							break;
+						}
+					}
+				}
+				//memorizziamo lato che va da ultimo vertice al primo
+				for(unsigned int l=0;l<NewNumCell1Ds;l++){
+						if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
+							mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
+						{
+							NewCell2DsEdges[t][2] = l;
+							break;
+						}
+				}
+				t++;				
+				//ultima faccia sopra
+				mesh.Cell2DsId.push_back(t);
+				NewCell2DsVertices.push_back(vector<unsigned int>(3));
+				NewCell2DsVertices[t][0] = NuoviVerticiLato(0,2);
+				NewCell2DsVertices[t][1] = NuoviVerticiLato(n-2,1);
+				NewCell2DsVertices[t][2] = vertice3;
+				NewCell2DsEdges.push_back(vector<unsigned int>(3));
+				for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
+				{
+					//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
+					for(unsigned int l=0;l<NewNumCell1Ds;l++){
+						if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
+							mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
+						{
+							NewCell2DsEdges[t][j] = l;
+							break;
+						}
+					}
+				}
+				//memorizziamo lato che va da ultimo vertice al primo
+				for(unsigned int l=0;l<NewNumCell1Ds;l++){
+						if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
+							mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
+						{
+							NewCell2DsEdges[t][2] = l;
+							break;
+						}
+				}
+				t++;
+				VerticiLivelloS.clear();
 			}
-			//memorizziamo lato che va da ultimo vertice al primo
-			for(unsigned int l=0;l<NewNumCell1Ds;l++){
+		}
+		else if (n == 2)
+		{
+			for(unsigned int i=0;i<old_facce;i++)//for su facce
+			{
+				MatrixXi NuoviVerticiLato = Eigen::MatrixXi::Zero(1, 3); //in colonna contiene id nuovi vertici della triangolazione sul lato nella faccia i
+				lato1 = mesh.Cell2DsEdges[i][0];
+				lato2 = mesh.Cell2DsEdges[i][1];
+				lato3 = mesh.Cell2DsEdges[i][2];
+				vertice1 = mesh.Cell2DsVertices[i][0];
+				vertice2 = mesh.Cell2DsVertices[i][1];
+				vertice3 = mesh.Cell2DsVertices[i][2];
+				//definiamo nuovi punti sui lati se non già esistenti
+				auto it_1 = find(LatiTriangolati.begin(), LatiTriangolati.end(),lato1);
+				if(it_1 == LatiTriangolati.end())
+				{
+					delta_x = (mesh.Cell0DsCoordinates(0,vertice2)-mesh.Cell0DsCoordinates(0,vertice1))/n;
+					delta_y = (mesh.Cell0DsCoordinates(1,vertice2)-mesh.Cell0DsCoordinates(1,vertice1))/n;
+					delta_z = (mesh.Cell0DsCoordinates(2,vertice2)-mesh.Cell0DsCoordinates(2,vertice1))/n;
+					mesh.Cell0DsId.push_back(h);
+					mesh.Cell0DsCoordinates(0,h) = mesh.Cell0DsCoordinates(0,vertice1)+delta_x;
+					mesh.Cell0DsCoordinates(1,h) = mesh.Cell0DsCoordinates(1,vertice1)+delta_y;
+					mesh.Cell0DsCoordinates(2,h) = mesh.Cell0DsCoordinates(2,vertice1)+delta_z;
+					NuoviVerticiLato(0,0)=h;
+					FirstNuoviVerticiLato(0,lato1)=h;//lo memorizzo per confronti futuri
+					h++;
+					LatiTriangolati.push_back(lato1);
+				}
+				else
+					NuoviVerticiLato(0,0)=FirstNuoviVerticiLato(0,lato1);
+				auto it_2 = find(LatiTriangolati.begin(), LatiTriangolati.end(),lato2);
+				if(it_2 == LatiTriangolati.end())
+				{
+					delta_x = (mesh.Cell0DsCoordinates(0,vertice3)-mesh.Cell0DsCoordinates(0,vertice2))/n;
+					delta_y = (mesh.Cell0DsCoordinates(1,vertice3)-mesh.Cell0DsCoordinates(1,vertice2))/n;
+					delta_z = (mesh.Cell0DsCoordinates(2,vertice3)-mesh.Cell0DsCoordinates(2,vertice2))/n;
+					mesh.Cell0DsId.push_back(h);
+					mesh.Cell0DsCoordinates(0,h) = mesh.Cell0DsCoordinates(0,vertice2)+delta_x;
+					mesh.Cell0DsCoordinates(1,h) = mesh.Cell0DsCoordinates(1,vertice2)+delta_y;
+					mesh.Cell0DsCoordinates(2,h) = mesh.Cell0DsCoordinates(2,vertice2)+delta_z;
+					NuoviVerticiLato(0,1)=h;
+					FirstNuoviVerticiLato(0,lato2)=h;
+					h++;
+					LatiTriangolati.push_back(lato2);
+				}
+				else
+					NuoviVerticiLato(0,1)=FirstNuoviVerticiLato(0,lato2);
+				auto it_3 = find(LatiTriangolati.begin(), LatiTriangolati.end(),lato3);
+				if(it_3 == LatiTriangolati.end())
+				{
+					delta_x = (mesh.Cell0DsCoordinates(0,vertice1)-mesh.Cell0DsCoordinates(0,vertice3))/n;
+					delta_y = (mesh.Cell0DsCoordinates(1,vertice1)-mesh.Cell0DsCoordinates(1,vertice3))/n;
+					delta_z = (mesh.Cell0DsCoordinates(2,vertice1)-mesh.Cell0DsCoordinates(2,vertice3))/n;
+					mesh.Cell0DsId.push_back(h);
+					mesh.Cell0DsCoordinates(0,h) = mesh.Cell0DsCoordinates(0,vertice3)+delta_x;
+					mesh.Cell0DsCoordinates(1,h) = mesh.Cell0DsCoordinates(1,vertice3)+delta_y;
+					mesh.Cell0DsCoordinates(2,h) = mesh.Cell0DsCoordinates(2,vertice3)+delta_z;
+					NuoviVerticiLato(0,2)=h;
+					FirstNuoviVerticiLato(0,lato3)=h;
+					h++;
+					LatiTriangolati.push_back(lato3);
+				}
+				else
+					NuoviVerticiLato(0,2)=FirstNuoviVerticiLato(0,lato3);
+				//costruzione dei lati: prima definiamo nuovi lati su ciascun lato della faccia originale se non già esistenti
+				auto it_1_sovra = find(LatiSovrascritti.begin(),LatiSovrascritti.end(),lato1);
+				if(it_1_sovra == LatiSovrascritti.end())
+				{
+					mesh.Cell1DsId.push_back(k);
+					mesh.Cell1DsExtrema(0,k) = vertice1;
+					mesh.Cell1DsExtrema(1,k) = NuoviVerticiLato(0,0);
+					k++;
+					mesh.Cell1DsId.push_back(k);
+					mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(0,0);
+					mesh.Cell1DsExtrema(1,k)=vertice2;
+					k++;
+					LatiSovrascritti.push_back(lato1);
+				}
+				auto it_2_sovra = find(LatiSovrascritti.begin(),LatiSovrascritti.end(),lato2);
+				if(it_2_sovra == LatiSovrascritti.end())
+				{
+					mesh.Cell1DsId.push_back(k);
+					mesh.Cell1DsExtrema(0,k) = vertice2;
+					mesh.Cell1DsExtrema(1,k) = NuoviVerticiLato(0,1);
+					k++;
+					mesh.Cell1DsId.push_back(k);
+					mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(0,1);
+					mesh.Cell1DsExtrema(1,k)=vertice3;
+					k++;
+					LatiSovrascritti.push_back(lato2);
+				}
+				auto it_3_sovra = find(LatiSovrascritti.begin(),LatiSovrascritti.end(),lato3);
+				if(it_3_sovra == LatiSovrascritti.end())
+				{
+					mesh.Cell1DsId.push_back(k);
+					mesh.Cell1DsExtrema(0,k) = vertice3;
+					mesh.Cell1DsExtrema(1,k) = NuoviVerticiLato(0,2);
+					k++;
+					mesh.Cell1DsId.push_back(k);
+					mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(0,2);
+					mesh.Cell1DsExtrema(1,k)=vertice1;
+					k++;
+					LatiSovrascritti.push_back(lato3);
+				}
+				//costruzione lati obliqui
+				mesh.Cell1DsId.push_back(k);
+				mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(0,0);
+				mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(0,1);
+				k++;
+				mesh.Cell1DsId.push_back(k);
+				mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(0,1);
+				mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(0,2);
+				k++;
+				mesh.Cell1DsId.push_back(k);
+				mesh.Cell1DsExtrema(0,k)=NuoviVerticiLato(0,2);
+				mesh.Cell1DsExtrema(1,k)=NuoviVerticiLato(0,0);
+				k++;
+				//costruzione facce
+				mesh.Cell2DsId.push_back(t);
+				NewCell2DsVertices.push_back(vector<unsigned int>(3));
+				NewCell2DsVertices[t][0] = vertice1;
+				NewCell2DsVertices[t][1] = NuoviVerticiLato(0,0);
+				NewCell2DsVertices[t][2] = NuoviVerticiLato(0,2);
+				NewCell2DsEdges.push_back(vector<unsigned int>(3));
+				for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
+				{
+					//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
+					for(unsigned int l=0;l<NewNumCell1Ds;l++)
+					{
+						if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] ||
+						mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
+						{
+							NewCell2DsEdges[t][j] = l;
+							break;
+						}
+					}
+				}
+				//memorizziamo lato che va da ultimo vertice al primo
+				for(unsigned int l=0;l<NewNumCell1Ds;l++)
+				{
 					if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
-						mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
+					mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
 					{
 						NewCell2DsEdges[t][2] = l;
 						break;
 					}
-			}
-			t++;
-			mesh.Cell2DsId.push_back(t);
-			NewCell2DsVertices.push_back(vector<unsigned int>(3));
-			NewCell2DsVertices[t][0] = VerticiLivelloS[n-3][0];
-			NewCell2DsVertices[t][1] = NuoviVerticiLato(n-3,1);
-			NewCell2DsVertices[t][2] = NuoviVerticiLato(n-2,1);
-			NewCell2DsEdges.push_back(vector<unsigned int>(3));
-			for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
-			{
-				//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
-				for(unsigned int l=0;l<NewNumCell1Ds;l++){
-					if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
-						mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
+				}
+				t++;
+				mesh.Cell2DsId.push_back(t);
+				NewCell2DsVertices.push_back(vector<unsigned int>(3));
+				NewCell2DsVertices[t][0] = NuoviVerticiLato(0,0);
+				NewCell2DsVertices[t][1] = vertice2;
+				NewCell2DsVertices[t][2] = NuoviVerticiLato(0,1);
+				NewCell2DsEdges.push_back(vector<unsigned int>(3));
+				for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
+				{
+					//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
+					for(unsigned int l=0;l<NewNumCell1Ds;l++)
 					{
-						NewCell2DsEdges[t][j] = l;
-						break;
+						if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] ||
+						mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
+						{
+							NewCell2DsEdges[t][j] = l;
+							break;
+						}
 					}
 				}
-			}
-			//memorizziamo lato che va da ultimo vertice al primo
-			for(unsigned int l=0;l<NewNumCell1Ds;l++){
+				//memorizziamo lato che va da ultimo vertice al primo
+				for(unsigned int l=0;l<NewNumCell1Ds;l++)
+				{
 					if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
-						mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
+					mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
 					{
 						NewCell2DsEdges[t][2] = l;
 						break;
 					}
-			}
-			t++;
-			//faccia "orientata" al contrario
-			mesh.Cell2DsId.push_back(t);
-			NewCell2DsVertices.push_back(vector<unsigned int>(3));
-			NewCell2DsVertices[t][0] = VerticiLivelloS[n-3][0];
-			NewCell2DsVertices[t][1] = NuoviVerticiLato(n-2,1);
-			NewCell2DsVertices[t][2] = NuoviVerticiLato(0,2);
-			NewCell2DsEdges.push_back(vector<unsigned int>(3));
-			for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
-			{
-				//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
-				for(unsigned int l=0;l<NewNumCell1Ds;l++){
-					if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
-						mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
+				}
+				t++;
+				mesh.Cell2DsId.push_back(t);
+				NewCell2DsVertices.push_back(vector<unsigned int>(3));
+				NewCell2DsVertices[t][0] = NuoviVerticiLato(0,0);
+				NewCell2DsVertices[t][1] = NuoviVerticiLato(0,1);
+				NewCell2DsVertices[t][2] = NuoviVerticiLato(0,2);
+				NewCell2DsEdges.push_back(vector<unsigned int>(3));
+				for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
+				{
+					//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
+					for(unsigned int l=0;l<NewNumCell1Ds;l++)
 					{
-						NewCell2DsEdges[t][j] = l;
-						break;
+						if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] ||
+						mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
+						{
+							NewCell2DsEdges[t][j] = l;
+							break;
+						}
 					}
 				}
-			}
-			//memorizziamo lato che va da ultimo vertice al primo
-			for(unsigned int l=0;l<NewNumCell1Ds;l++){
+				//memorizziamo lato che va da ultimo vertice al primo
+				for(unsigned int l=0;l<NewNumCell1Ds;l++)
+				{
 					if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
-						mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
+					mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
 					{
 						NewCell2DsEdges[t][2] = l;
 						break;
 					}
-			}
-			t++;				
-			//ultima faccia sopra
-			mesh.Cell2DsId.push_back(t);
-			NewCell2DsVertices.push_back(vector<unsigned int>(3));
-			NewCell2DsVertices[t][0] = NuoviVerticiLato(0,2);
-			NewCell2DsVertices[t][1] = NuoviVerticiLato(n-2,1);
-			NewCell2DsVertices[t][2] = vertice3;
-			NewCell2DsEdges.push_back(vector<unsigned int>(3));
-			for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
-			{
-				//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
-				for(unsigned int l=0;l<NewNumCell1Ds;l++){
-					if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] || 
-						mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
+				}
+				t++;
+				mesh.Cell2DsId.push_back(t);
+				NewCell2DsVertices.push_back(vector<unsigned int>(3));
+				NewCell2DsVertices[t][0] = NuoviVerticiLato(0,2);
+				NewCell2DsVertices[t][1] = NuoviVerticiLato(0,1);
+				NewCell2DsVertices[t][2] = vertice3;
+				NewCell2DsEdges.push_back(vector<unsigned int>(3));
+				for(unsigned int j=0;j<2;j++) //facciamo a parte il lato che va da ultimo vertice al primo
+				{
+					//ciclo sulla matrice Extrema per trovare colonna a cui corrisponde mio lato
+					for(unsigned int l=0;l<NewNumCell1Ds;l++)
 					{
-						NewCell2DsEdges[t][j] = l;
-						break;
+						if(mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j+1] ||
+						mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][j+1] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][j]) //non importa origine e fine, basta trovare lati concatenati
+						{
+							NewCell2DsEdges[t][j] = l;
+							break;
+						}
 					}
 				}
-			}
-			//memorizziamo lato che va da ultimo vertice al primo
-			for(unsigned int l=0;l<NewNumCell1Ds;l++){
+				//memorizziamo lato che va da ultimo vertice al primo
+				for(unsigned int l=0;l<NewNumCell1Ds;l++)
+				{
 					if(mesh.Cell1DsExtrema(0,l)== NewCell2DsVertices[t][2] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][0] ||
-						mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
+					mesh.Cell1DsExtrema(0,l)==NewCell2DsVertices[t][0] && mesh.Cell1DsExtrema(1,l) == NewCell2DsVertices[t][2])
 					{
 						NewCell2DsEdges[t][2] = l;
 						break;
 					}
+				}
+				t++;
 			}
-			t++;
-			VerticiLivelloS.clear();
 		}
 		mesh.NumCell0Ds = mesh.Cell0DsId.size();
 		mesh.NumCell1Ds = mesh.Cell1DsId.size();
@@ -1209,5 +1452,83 @@ namespace PolyhedronLibrary
 			for(unsigned int j=0;j<3;j++)
 				mesh.Cell0DsCoordinates(j,i) = (mesh.Cell0DsCoordinates(j,i))/norma;
 		}
+	}
+	
+	void ShortestPath(PolyhedronMesh &mesh, int id_origin,int id_end)
+	{
+		//inizializziamo con tutti zeri i vettori per il cammino minimo per vertici e lati
+		mesh.VerticesInShortestPath.reserve(mesh.NumCell0Ds);
+		mesh.EdgesInShortestPath.reserve(mesh.NumCell1Ds);
+		vector<double> v1(mesh.NumCell0Ds,0);
+		vector<double> v2(mesh.NumCell1Ds,0);
+		mesh.VerticesInShortestPath = v1;
+		mesh.EdgesInShortestPath = v2; 
+		//per trovare numero di lati utilizziamo contatore l
+		unsigned int l = 0;
+		//costruzione lista di adiacenza dei vertici
+		mesh.Cell0DsVerticesAdj.reserve(mesh.NumCell0Ds);
+		for(unsigned int i = 0;i<mesh.NumCell0Ds;i++)
+		{
+			mesh.Cell0DsVerticesAdj.push_back(vector<unsigned int>()); 
+			
+			//for su matrice Extrema per trovare lati che hanno come estremo i, l'altro è adiacente ad i
+			for(unsigned int k=0;k<mesh.NumCell1Ds;k++)
+			{
+				if(mesh.Cell1DsExtrema(0,k)==i)
+					mesh.Cell0DsVerticesAdj[i].push_back(mesh.Cell1DsExtrema(1,k));
+				else if(mesh.Cell1DsExtrema(1,k)==i)
+					mesh.Cell0DsVerticesAdj[i].push_back(mesh.Cell1DsExtrema(0,k));	
+			}
+		}
+		//algoritmo BFS
+		vector<bool> Reached; //vettore per dire se si è giunti o meno in un vertice
+		Reached.reserve(mesh.NumCell0Ds);
+		queue<unsigned int> Q; //coda
+		vector<unsigned int> predecessori;
+		predecessori.reserve(mesh.NumCell0Ds);
+		for(unsigned int i=0;i<mesh.NumCell0Ds;i++)
+		{
+			predecessori.push_back(0);
+			Reached.push_back(false);
+		}
+		unsigned int u=0;
+		Q.push(id_origin);
+		Reached[id_origin]=true;
+		while(!Q.empty())
+		{
+			u = Q.front();
+			Q.pop();
+			Reached[u]=true;
+			for(unsigned int j=0;j<mesh.Cell0DsVerticesAdj[u].size();j++)
+			{
+				if(Reached[mesh.Cell0DsVerticesAdj[u][j]]==false)
+				{
+					Q.push(mesh.Cell0DsVerticesAdj[u][j]);
+					Reached[mesh.Cell0DsVerticesAdj[u][j]] = true;
+					predecessori[mesh.Cell0DsVerticesAdj[u][j]] = u;
+				}
+			}
+		}
+		unsigned int current_vertice = id_end;
+		unsigned int predecessore;
+		while(current_vertice!=id_origin)
+		{
+			mesh.VerticesInShortestPath[current_vertice] = 1;
+			predecessore = predecessori[current_vertice];
+			mesh.VerticesInShortestPath[predecessore] = 1;
+			//cerco in matrice lato di estremi current_vertice e predecessore
+			for(unsigned int k=0;k<mesh.NumCell1Ds;k++)
+			{
+				if((mesh.Cell1DsExtrema(0,k)==current_vertice && mesh.Cell1DsExtrema(1,k)==predecessore)||
+					(mesh.Cell1DsExtrema(0,k)==predecessore && mesh.Cell1DsExtrema(1,k)==current_vertice))
+					{
+						mesh.EdgesInShortestPath[k]=1;
+						break;
+					}
+			}
+			l++;
+			current_vertice = predecessore;
+		}
+		cout << "il numero di lati del cammino minimo è " << l <<endl;
 	}
 }
